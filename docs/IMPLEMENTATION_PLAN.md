@@ -1,7 +1,7 @@
 # VYRA — Plan d'implémentation MVP
 
 > "Ton dressing. Ton style. Ton IA."
-> Statut : Phases 1–4 terminées (2026-10-17). Prochaine : Phase 5 (onboarding).
+> Statut : Phases 1–5 terminées (2026-10-17). Prochaine : Phase 6 (dressing).
 >
 > Écarts vs plan, décidés en cours de route :
 >
@@ -11,6 +11,7 @@
 > - **Seed** : pas de photos tierces téléchargées ; le seed génère des illustrations « flat-lay » (SVG → WebP via `sharp`, aux tailles du pipeline d'upload). Les vraies photos arrivent avec l'upload utilisateur.
 > - **Phase 3 = API uniquement** : les écrans login/register/forgot et la protection des routes côté mobile sont faits en Phase 4, avec la navigation. Reset de mot de passe par **code à 6 chiffres** saisi dans l'app (pas de lien profond). Ajout de `GET /api/users/me`.
 > - **Phase 4** : styles en `StyleSheet` + tokens typés (pas de NativeWind, comme prévu). Les onglets Dressing, Agenda et Styliste sont des écrans d'attente soignés en attendant leurs phases ; les lignes du Profil (préférences, abonnement…) sont visibles mais inactives. `Tabs` est importé depuis `expo-router/js-tabs` (l'import racine est déprécié en SDK 57).
+> - **Phase 5** : l'onboarding est un seul écran à étapes animées (pas 8 routes) ; brouillon en mémoire uniquement (pas de persistance disque : il se refait en une minute). Le « genre » est un choix de vestiaire (Femme / Homme / Les deux), pas une identité. Limites : 1–4 styles, 1–6 couleurs, 1–5 occasions (« Surprends-moi » exclu des préférences).
 > - `OutfitItem → ClothingItem` est en `ON DELETE CASCADE` : Postgres refusait la suppression en cascade d'un utilisateur avec `RESTRICT`/`NO ACTION`. Sans risque pour l'historique, car l'app n'efface jamais un vêtement en dur (archivage via `archivedAt`).
 
 ## 0. État du repository

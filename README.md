@@ -13,7 +13,8 @@ Plan d'implémentation et décisions : [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEM
 | 2      | PostgreSQL, schéma Prisma, migrations, seed de démo                  | ✅      |
 | 3      | Authentification API (JWT, refresh rotatif, reset par code, guards)  | ✅      |
 | 4      | Design system, navigation 5 onglets, écrans d'auth, routes protégées | ✅      |
-| 5 → 18 | Onboarding, dressing, IA, calendrier, abonnements…                   | à venir |
+| 5      | Onboarding en 8 étapes, profil et préférences de style éditables     | ✅      |
+| 6 → 18 | Dressing, stockage, IA, calendrier, abonnements…                     | à venir |
 
 ## Structure
 
@@ -80,6 +81,8 @@ Lancer une seule app : `pnpm --filter @vyra/api dev`, `pnpm --filter @vyra/mobil
 - **Client API** : `authorizedRequest()` ajoute le Bearer, rafraîchit le token s'il expire et rejoue une fois en cas de `AUTH_REQUIRED`.
 - **Design system** (`src/ui`) : tokens de `@vyra/config/tokens`, typo Manrope, `Button`, `TextField`, `Card`, `Chip`, `IconButton`, `Screen` (safe areas, clavier, pull-to-refresh), `ScreenHeader`, `Skeleton`, `EmptyState`, `ErrorState`, retours haptiques (natif uniquement), icônes Lucide.
 - **i18n** : français par défaut, anglais si l'appareil est en anglais (`src/i18n`, clés typées : `en.ts` doit refléter `fr.ts`).
+- **Onboarding** (`app/(app)/onboarding.tsx`) : 8 étapes (accueil, prénom, vestiaire, styles, couleurs, occasions, ville, récapitulatif), obligatoire tant que le profil n'est pas complété — garde `Stack.Protected` sur `user.onboardingCompleted`. Brouillon en mémoire (Zustand) conservé en revenant en arrière, réinitialisé à la déconnexion. Les réponses partent en une seule requête à la fin. Une ville choisie dans les suggestions renseigne aussi le pays et le fuseau horaire (sinon : fuseau de l'appareil).
+- **Édition du profil** : Profil → « Préférences de style » (`app/(app)/edit-profile.tsx`), mêmes sélecteurs que l'onboarding (`src/features/profile/pickers.tsx`).
 - **Formulaires** : React Hook Form + Zod, messages traduits ; l'API revalide tout avec `@vyra/shared`.
 - `pnpm --filter @vyra/mobile typecheck` génère d'abord les types des routes typées (`scripts/typegen.js`) — pas besoin de lancer Metro.
 
@@ -122,6 +125,7 @@ Toutes passent par une interface avec une implémentation mock sélectionnée pa
 ## API
 
 - Préfixe `/api`, documentation Swagger sur `/api/docs` (désactivée en production).
+- **Profil** (`/api/profile`) : `GET` (profil + préférences déclarées), `PUT /onboarding` (toutes les réponses, atomique, idempotent : conserve la date de première complétion), `PATCH` (n'importe quel sous-ensemble). Vocabulaire des couleurs partagé : `STYLE_COLORS` dans `@vyra/shared` (réutilisé par le dressing et le moteur de looks).
 - Sondes : `GET /api/health` (processus vivant) et `GET /api/health/ready` (base joignable, sinon 503).
 - Format d'erreur unique : `{ "error": { "code": "NOT_FOUND", "message": "...", "details": ... } }` — codes dans `packages/shared/src/errors.ts`. Aucune stack trace n'est renvoyée au client.
 - **Authentification** (`/api/auth`) : `register`, `login`, `refresh`, `logout`, `forgot-password`, `reset-password` ; `GET /api/users/me`.

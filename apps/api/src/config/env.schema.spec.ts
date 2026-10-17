@@ -42,6 +42,16 @@ describe('validateEnv', () => {
     expect(run).toThrow(/local storage is for development only/);
   });
 
+  it('rejects the test-only throttle override in production', () => {
+    expect(() =>
+      validateEnv({ ...base, NODE_ENV: 'production', THROTTLE_AUTH_LIMIT: '1000' }),
+    ).toThrow(/THROTTLE_AUTH_LIMIT/);
+  });
+
+  it('rejects malformed access token lifetimes', () => {
+    expect(() => validateEnv({ ...base, JWT_ACCESS_TTL: '15 minutes' })).toThrow(/JWT_ACCESS_TTL/);
+  });
+
   it('accepts a correct production config', () => {
     const env = validateEnv({
       NODE_ENV: 'production',

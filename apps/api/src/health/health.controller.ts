@@ -13,6 +13,7 @@ import {
   readinessResponseSchema,
 } from '@vyra/shared';
 import { createZodDto } from 'nestjs-zod';
+import { Public } from '../auth/decorators';
 import { AppException } from '../common/errors/app.exception';
 import { PrismaService } from '../prisma/prisma.service';
 import { APP_VERSION } from '../version';
@@ -21,6 +22,7 @@ class HealthResponseDto extends createZodDto(healthResponseSchema) {}
 class ReadinessResponseDto extends createZodDto(readinessResponseSchema) {}
 
 @ApiTags('health')
+@Public()
 @SkipThrottle()
 @Controller('health')
 export class HealthController {

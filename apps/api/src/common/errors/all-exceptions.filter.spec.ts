@@ -44,3 +44,20 @@ describe('AllExceptionsFilter', () => {
     expect(JSON.stringify(body)).not.toContain('at ');
   });
 });
+
+describe('AllExceptionsFilter — Prisma errors', () => {
+  const filter = new AllExceptionsFilter(false);
+
+  it('maps unique constraint violations to CONFLICT', () => {
+    const error = Object.assign(new Error('Unique constraint failed'), { code: 'P2002' });
+    expect(filter.toErrorBody(error)).toEqual({
+      status: 409,
+      body: { error: { code: 'CONFLICT', message: 'This resource already exists' } },
+    });
+  });
+
+  it('maps missing records to NOT_FOUND', () => {
+    const error = Object.assign(new Error('Record not found'), { code: 'P2025' });
+    expect(filter.toErrorBody(error).body.error.code).toBe('NOT_FOUND');
+  });
+});

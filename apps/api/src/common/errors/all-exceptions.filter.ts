@@ -76,6 +76,15 @@ export class AllExceptionsFilter implements ExceptionFilter {
       return this.build(status, code, message);
     }
 
+    // Prisma known errors (duck-typed to keep this filter free of generated-client imports).
+    const prismaCode = (exception as { code?: unknown } | null)?.code;
+    if (prismaCode === 'P2002') {
+      return this.build(HttpStatus.CONFLICT, 'CONFLICT', 'This resource already exists');
+    }
+    if (prismaCode === 'P2025') {
+      return this.build(HttpStatus.NOT_FOUND, 'NOT_FOUND', 'Resource not found');
+    }
+
     this.logUnexpected(exception);
     const message =
       this.exposeInternalMessages && exception instanceof Error

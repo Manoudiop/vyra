@@ -7,11 +7,12 @@ Plan d'implémentation et décisions : [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEM
 
 ## Statut
 
-| Phase  | Contenu                                                  | État    |
-| ------ | -------------------------------------------------------- | ------- |
-| 1      | Monorepo, configuration, squelettes API / mobile / admin | ✅      |
-| 2      | PostgreSQL, schéma Prisma, migrations, seed de démo      | ✅      |
-| 3 → 18 | Auth, design system, features…                           | à venir |
+| Phase  | Contenu                                                             | État    |
+| ------ | ------------------------------------------------------------------- | ------- |
+| 1      | Monorepo, configuration, squelettes API / mobile / admin            | ✅      |
+| 2      | PostgreSQL, schéma Prisma, migrations, seed de démo                 | ✅      |
+| 3      | Authentification API (JWT, refresh rotatif, reset par code, guards) | ✅      |
+| 4 → 18 | Navigation mobile + écrans auth, design system, features…           | à venir |
 
 ## Structure
 
@@ -111,6 +112,13 @@ Toutes passent par une interface avec une implémentation mock sélectionnée pa
 - Préfixe `/api`, documentation Swagger sur `/api/docs` (désactivée en production).
 - Sondes : `GET /api/health` (processus vivant) et `GET /api/health/ready` (base joignable, sinon 503).
 - Format d'erreur unique : `{ "error": { "code": "NOT_FOUND", "message": "...", "details": ... } }` — codes dans `packages/shared/src/errors.ts`. Aucune stack trace n'est renvoyée au client.
+- **Authentification** (`/api/auth`) : `register`, `login`, `refresh`, `logout`, `forgot-password`, `reset-password` ; `GET /api/users/me`.
+  - Access token JWT HS256 (15 min par défaut, `JWT_ACCESS_TTL`) dans `Authorization: Bearer …`.
+  - Refresh token opaque (256 bits), stocké **haché** (HMAC-SHA256), **rotatif** : chaque `refresh` l'invalide. Réutiliser un ancien token révoque toute la session (détection de vol). `logout` ne ferme que la session concernée.
+  - Mots de passe en argon2id (8–128 caractères, au moins une lettre et un chiffre). Login : même réponse pour un email inconnu et un mauvais mot de passe.
+  - Mot de passe oublié : code à 6 chiffres envoyé par `MailProvider` (en dev : affiché dans la console de l'API), haché, 15 min, 5 essais, usage unique ; la réponse ne révèle pas si le compte existe. Un reset déconnecte tous les appareils.
+  - Toutes les routes exigent un token, sauf celles marquées `@Public()`. `@Roles('ADMIN')` restreint une route ; `@CurrentUser()` fournit l'utilisateur — les contrôles d'appartenance utilisent toujours cet id, jamais un id venant du body.
+  - Rate limiting renforcé : 10 req/min/IP sur register/login, 5 req/15 min/IP sur le reset. Derrière un reverse proxy, il faudra activer `trust proxy` pour limiter par IP client (à traiter au déploiement).
 - Sécurité de base : `helmet`, CORS par liste blanche (`CORS_ORIGINS`), rate limiting global (`@nestjs/throttler`), validation Zod globale.
 
 ## Tests

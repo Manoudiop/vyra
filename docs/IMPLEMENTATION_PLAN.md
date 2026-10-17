@@ -1,7 +1,7 @@
 # VYRA — Plan d'implémentation MVP
 
 > "Ton dressing. Ton style. Ton IA."
-> Statut : Phases 1–2 terminées (2026-10-17). Prochaine : Phase 3 (authentification).
+> Statut : Phases 1–3 terminées (2026-10-17). Prochaine : Phase 4 (navigation mobile + design system, incluant les écrans d'auth et les routes protégées côté mobile).
 >
 > Écarts vs plan, décidés en cours de route :
 >
@@ -9,6 +9,7 @@
 > - **Prisma 7** (générateur `prisma-client`, adaptateur `@prisma/adapter-pg`, `prisma.config.ts`), client généré dans `apps/api/src/generated/prisma` (non versionné, régénéré au `postinstall`).
 > - **Images** : la base stocke des **clés** de stockage (`ClothingItem.imageKey` / `thumbnailKey`, `User.avatarKey`) et non des URLs ; l'API expose `imageUrl` / `avatarUrl` signées à la lecture (Phase 7), car une URL signée expire.
 > - **Seed** : pas de photos tierces téléchargées ; le seed génère des illustrations « flat-lay » (SVG → WebP via `sharp`, aux tailles du pipeline d'upload). Les vraies photos arrivent avec l'upload utilisateur.
+> - **Phase 3 = API uniquement** : les écrans login/register/forgot et la protection des routes côté mobile sont faits en Phase 4, avec la navigation. Reset de mot de passe par **code à 6 chiffres** saisi dans l'app (pas de lien profond). Ajout de `GET /api/users/me`.
 > - `OutfitItem → ClothingItem` est en `ON DELETE CASCADE` : Postgres refusait la suppression en cascade d'un utilisateur avec `RESTRICT`/`NO ACTION`. Sans risque pour l'historique, car l'app n'efface jamais un vêtement en dur (archivage via `archivedAt`).
 
 ## 0. État du repository

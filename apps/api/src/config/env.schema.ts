@@ -26,9 +26,15 @@ export const envSchema = z
     DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }),
 
     JWT_ACCESS_SECRET: z.string().min(32),
+    /** Also keys the HMAC of stored refresh tokens and password reset codes. */
     JWT_REFRESH_SECRET: z.string().min(32),
-    JWT_ACCESS_TTL: z.string().default('15m'),
+    JWT_ACCESS_TTL: z
+      .string()
+      .regex(/^\d+[smhd]$/, { message: 'use a duration like 900s, 15m, 1h' })
+      .default('15m'),
     REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().min(1).max(365).default(30),
+    /** Per-IP budget on sensitive auth routes, per window. Override only for tests. */
+    THROTTLE_AUTH_LIMIT: z.coerce.number().int().min(1).optional(),
 
     AI_PROVIDER: z.enum(['mock']).default('mock'),
     WEATHER_PROVIDER: z.enum(['mock', 'open-meteo']).default('mock'),
@@ -83,6 +89,13 @@ export const envSchema = z
           code: 'custom',
           path: ['STORAGE_DRIVER'],
           message: 'local storage is for development only',
+        });
+      }
+      if (env.THROTTLE_AUTH_LIMIT !== undefined) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['THROTTLE_AUTH_LIMIT'],
+          message: 'test-only override, must be unset in production',
         });
       }
       if (env.CORS_ORIGINS.includes('*')) {

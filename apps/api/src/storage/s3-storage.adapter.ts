@@ -94,6 +94,19 @@ export class S3StorageAdapter extends StorageService {
     }
   }
 
+  async download(key: string): Promise<Buffer> {
+    this.assertKey(key);
+    try {
+      const object = await this.client.send(
+        new GetObjectCommand({ Bucket: this.settings.bucket, Key: key }),
+      );
+      if (!object.Body) throw new Error('Empty object body');
+      return Buffer.from(await object.Body.transformToByteArray());
+    } catch (error) {
+      throw storageError(error);
+    }
+  }
+
   getSignedUrl(key: string): Promise<string> {
     this.assertKey(key);
     // Signing at the start of the hour window yields identical URLs for an hour

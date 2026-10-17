@@ -1,4 +1,9 @@
-import { type ClosetSummary, type ClothingItemDetail, type UploadedImage } from '@vyra/shared';
+import {
+  type AnalyzeClothingResponse,
+  type ClosetSummary,
+  type ClothingItemDetail,
+  type UploadedImage,
+} from '@vyra/shared';
 import { fireEvent, renderRouter, screen, waitFor } from 'expo-router/testing-library';
 import { authApi } from '@/features/auth/auth-api';
 import { useSession } from '@/features/auth/session-store';
@@ -21,6 +26,7 @@ jest.mock('./closet-api', () => ({
     remove: jest.fn(),
     create: jest.fn(),
     uploadImage: jest.fn(),
+    analyze: jest.fn(),
     discardImage: jest.fn(async () => undefined),
   },
 }));
@@ -45,6 +51,37 @@ const UPLOADED: UploadedImage = {
   height: 1500,
   dominantColorHex: '#B5573B',
 };
+const AI: AnalyzeClothingResponse = {
+  provider: 'mock',
+  analysis: {
+    name: 'Caftan terracotta',
+    category: 'TRADITIONAL',
+    subcategory: 'caftan',
+    color: 'terracotta',
+    colorHex: '#B5573B',
+    style: 'TRADITIONAL',
+    season: 'ALL_SEASON',
+    confidence: { category: 0.7, color: 0.9, style: 0.8, season: 0.45 },
+  },
+};
+
+const DETAIL: ClothingItemDetail = {
+  id: 'new-1',
+  name: 'Caftan terracotta',
+  category: 'TRADITIONAL',
+  subcategory: 'caftan',
+  color: 'terracotta',
+  colorHex: '#B5573B',
+  style: 'TRADITIONAL',
+  season: 'ALL_SEASON',
+  isFavorite: false,
+  imageUrl: 'https://img.test/k.webp',
+  thumbnailUrl: 'https://img.test/k_thumb.webp',
+  createdAt: '2026-10-17T00:00:00.000Z',
+  updatedAt: '2026-10-17T00:00:00.000Z',
+  stats: { outfitCount: 0, wearCount: 0, lastWornAt: null },
+};
+
 const SUMMARY: ClosetSummary = {
   total: 3,
   favorites: 0,
@@ -94,28 +131,14 @@ beforeEach(async () => {
   (pickPhoto as jest.Mock).mockResolvedValue({ status: 'picked', photo: PHOTO });
   (preparePhoto as jest.Mock).mockResolvedValue({ ...PHOTO, width: 1200, height: 1600 });
   (toUploadForm as jest.Mock).mockResolvedValue(new FormData());
+  api.analyze.mockResolvedValue(AI);
 });
 
 describe('add a closet item', () => {
-  it('photo → upload → describe → saved, with the color pre-selected from the photo', async () => {
+  it('photo → upload → AI analysis pre-fills every field → saved with the analysis', async () => {
     api.uploadImage.mockResolvedValue(UPLOADED);
-    api.create.mockResolvedValue({ ...UPLOADED, id: 'new-1' } as never);
-    api.get.mockResolvedValue({
-      id: 'new-1',
-      name: 'Caftan',
-      category: 'TRADITIONAL',
-      subcategory: null,
-      color: 'terracotta',
-      colorHex: '#B5573B',
-      style: null,
-      season: 'ALL_SEASON',
-      isFavorite: false,
-      imageUrl: UPLOADED.imageUrl,
-      thumbnailUrl: UPLOADED.thumbnailUrl,
-      createdAt: '2026-10-17T00:00:00.000Z',
-      updatedAt: '2026-10-17T00:00:00.000Z',
-      stats: { outfitCount: 0, wearCount: 0, lastWornAt: null },
-    } satisfies ClothingItemDetail);
+    api.create.mockResolvedValue({ ...DETAIL } as never);
+    api.get.mockResolvedValue(DETAIL);
 
     await renderRouter('./app', { initialUrl: '/closet/add' });
     await fireEvent.press(await screen.findByTestId('add-library'));
@@ -123,27 +146,69 @@ describe('add a closet item', () => {
     expect(pickPhoto).toHaveBeenCalledWith('library');
     expect(await screen.findByTestId('add-details')).toBeTruthy();
     expect(preparePhoto).toHaveBeenCalledWith(PHOTO);
-    // Dominant color #B5573B → terracotta, pre-selected but editable.
-    expect(screen.getByRole('radio', { name: 'Terracotta' })).toBeChecked();
-    expect(screen.getByTestId('add-save')).toBeDisabled();
+    expect(api.analyze).toHaveBeenCalledWith(UPLOADED.imageKey);
 
-    await fireEvent.changeText(screen.getByTestId('item-name'), 'Caftan');
-    await fireEvent.press(screen.getByTestId('item-category-TRADITIONAL'));
+    // Every field comes from the analysis; low-confidence ones are flagged.
+    expect(screen.getByTestId('item-name').props.value).toBe('Caftan terracotta');
+    expect(screen.getByTestId('item-subcategory').props.value).toBe('caftan');
+    expect(screen.getByRole('radio', { name: 'Terracotta' })).toBeChecked();
+    expect(screen.getByTestId('add-ai-note')).toBeTruthy();
+    expect(screen.getByText('À vérifier : saison')).toBeTruthy();
+    expect(screen.getByTestId('add-save')).not.toBeDisabled();
+
     await fireEvent.press(screen.getByTestId('add-save'));
 
     await waitFor(() => expect(api.create).toHaveBeenCalledTimes(1));
     expect(api.create.mock.calls[0]?.[0]).toMatchObject({
-      name: 'Caftan',
+      name: 'Caftan terracotta',
       category: 'TRADITIONAL',
+      subcategory: 'caftan',
       color: 'terracotta',
       colorHex: '#B5573B',
-      season: 'ALL_SEASON',
+      style: 'TRADITIONAL',
       imageKey: UPLOADED.imageKey,
       thumbnailKey: UPLOADED.thumbnailKey,
+      metadata: { source: 'upload', provider: 'mock', corrected: [], analysis: AI.analysis },
     });
     expect(await screen.findByTestId('item-screen')).toBeTruthy();
     // Saved photos are owned by the item: nothing to clean up.
     expect(api.discardImage).not.toHaveBeenCalled();
+  });
+
+  it('records which suggestions the user corrected', async () => {
+    api.uploadImage.mockResolvedValue(UPLOADED);
+    api.create.mockResolvedValue({ ...DETAIL } as never);
+    api.get.mockResolvedValue(DETAIL);
+
+    await renderRouter('./app', { initialUrl: '/closet/add' });
+    await fireEvent.press(await screen.findByTestId('add-library'));
+    await screen.findByTestId('add-details');
+
+    await fireEvent.press(screen.getByTestId('item-category-OTHER'));
+    await fireEvent.press(screen.getByRole('radio', { name: 'Orange' }));
+    await fireEvent.press(screen.getByTestId('add-save'));
+
+    await waitFor(() => expect(api.create).toHaveBeenCalledTimes(1));
+    expect(api.create.mock.calls[0]?.[0]).toMatchObject({
+      category: 'OTHER',
+      color: 'orange',
+      colorHex: '#D9782D',
+      metadata: { corrected: ['category', 'color'] },
+    });
+  });
+
+  it('falls back to manual entry when the analysis is unavailable', async () => {
+    api.uploadImage.mockResolvedValue(UPLOADED);
+    api.analyze.mockRejectedValue(new ApiError('AI_ERROR', 'down', 502));
+
+    await renderRouter('./app', { initialUrl: '/closet/add' });
+    await fireEvent.press(await screen.findByTestId('add-library'));
+
+    expect(await screen.findByTestId('add-ai-unavailable')).toBeTruthy();
+    // The photo's dominant color (#B5573B) still pre-selects the color.
+    expect(screen.getByRole('radio', { name: 'Terracotta' })).toBeChecked();
+    expect(screen.getByTestId('item-name').props.value).toBe('');
+    expect(screen.getByTestId('add-save')).toBeDisabled();
   });
 
   it('cleans up the uploaded photo when the user leaves without saving', async () => {

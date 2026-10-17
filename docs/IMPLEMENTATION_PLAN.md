@@ -1,7 +1,7 @@
 # VYRA — Plan d'implémentation MVP
 
 > "Ton dressing. Ton style. Ton IA."
-> Statut : Phases 1–7 terminées (2026-10-17). Prochaine : Phase 8 (analyse IA des vêtements, provider mock).
+> Statut : Phases 1–8 terminées (2026-10-18). Prochaine : Phase 9 (styliste IA : moteur de candidats + génération).
 >
 > Écarts vs plan, décidés en cours de route :
 >
@@ -14,6 +14,7 @@
 > - **Phase 5** : l'onboarding est un seul écran à étapes animées (pas 8 routes) ; brouillon en mémoire uniquement (pas de persistance disque : il se refait en une minute). Le « genre » est un choix de vestiaire (Femme / Homme / Les deux), pas une identité. Limites : 1–4 styles, 1–6 couleurs, 1–5 occasions (« Surprends-moi » exclu des préférences).
 > - **Phase 6** : la lecture du stockage (URLs signées + adaptateur local) a été avancée depuis la phase 7, sinon la grille n'aurait rien à afficher ; l'upload, la suppression d'objets et l'adaptateur S3 restent en phase 7. La limite FREE de 30 pièces est déjà appliquée à la création. Les couleurs du seed ont été ramenées au vocabulaire partagé (`STYLE_COLORS`), désormais imposé par l'API.
 > - **Phase 7** : détection du format par libvips/`sharp` (en-têtes binaires + décodage complet) plutôt que `file-type` (paquet ESM-only, incompatible avec la build CJS de l'API) ; le HEIC iPhone est converti en JPEG sur le téléphone avant l'envoi. URLs signées alignées sur des fenêtres d'une heure (identiques pendant l'heure → cache image côté app). Le vocabulaire de couleurs n'a pas de « bordeaux » : une pièce bordeaux est suggérée « marron » ; à revoir avec l'analyse IA (phase 8).
+> - **Phase 8** : le mock IA est une vraie analyse d'image heuristique (pas des réponses figées), validée sur les 17 types de pièces du seed. Palette étendue à 20 couleurs (ajout bordeaux, orange, violet, argent) ; correspondance des couleurs en CIELAB (la distance RVB confondait sable/rose et denim/violet). Limite connue : comme tout modèle de silhouette, il suppose une pièce centrée sur fond uni (c'est ce que l'écran d'ajout conseille) ; un blazer et une chemise ont la même silhouette. Le comptage d'usage (`CLOTHING_ANALYSIS`) arrive avec la phase 14.
 > - `OutfitItem → ClothingItem` est en `ON DELETE CASCADE` : Postgres refusait la suppression en cascade d'un utilisateur avec `RESTRICT`/`NO ACTION`. Sans risque pour l'historique, car l'app n'efface jamais un vêtement en dur (archivage via `archivedAt`).
 
 ## 0. État du repository

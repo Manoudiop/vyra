@@ -67,6 +67,10 @@ describe('nearestStyleColor', () => {
     expect(nearestStyleColor('#0a0a0a')).toBe('black');
     expect(nearestStyleColor('#FAFAF7')).toBe('white');
     expect(nearestStyleColor('#22305a')).toBe('navy');
+    expect(nearestStyleColor('#CAB18A')).toBe('beige'); // sand coat
+    expect(nearestStyleColor('#262626')).toBe('black');
+    expect(nearestStyleColor('#2F4A73')).toBe('navy'); // dark denim
+    expect(nearestStyleColor('#7A2E3A')).toBe('burgundy');
     expect(nearestStyleColor('nope')).toBeNull();
   });
 });

@@ -1,4 +1,5 @@
 import {
+  type AnalyzeClothingResponse,
   type ClosetPage,
   type ClosetSummary,
   type ClothingCategory,
@@ -47,6 +48,11 @@ export const closetApi = {
     authorizedRequest<ClothingItem>('/closet', { method: 'POST', body }),
   uploadImage: (form: FormData) =>
     authorizedRequest<UploadedImage>('/storage/images', { method: 'POST', body: form }),
+  analyze: (imageKey: string) =>
+    authorizedRequest<AnalyzeClothingResponse>('/ai/analyze-clothing', {
+      method: 'POST',
+      body: { imageKey },
+    }),
   /** Best-effort cleanup of a photo the user uploaded but did not save. */
   discardImage: (body: DeleteUploadedImageInput) =>
     authorizedRequest<void>('/storage/images', { method: 'DELETE', body }),

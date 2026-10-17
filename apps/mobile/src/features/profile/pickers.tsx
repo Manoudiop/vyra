@@ -168,7 +168,7 @@ export function ColorPicker({
       {STYLE_COLOR_NAMES.map((name) => {
         const selected = value.includes(name);
         const hex = STYLE_COLORS[name];
-        const light = ['white', 'cream', 'beige', 'pink', 'yellow'].includes(name);
+        const light = ['white', 'cream', 'beige', 'pink', 'yellow', 'silver'].includes(name);
         return (
           <PressableScale
             key={name}

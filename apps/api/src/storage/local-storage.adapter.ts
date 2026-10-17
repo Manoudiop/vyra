@@ -1,5 +1,5 @@
 import { createHmac } from 'node:crypto';
-import { access, mkdir, rm, writeFile } from 'node:fs/promises';
+import { access, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { dirname, resolve, sep } from 'node:path';
 import { safeEqualHex } from '../common/security/tokens';
 import {
@@ -44,6 +44,10 @@ export class LocalStorageAdapter extends StorageService {
     } catch {
       return false;
     }
+  }
+
+  download(key: string): Promise<Buffer> {
+    return readFile(this.pathFor(key));
   }
 
   async getSignedUrl(key: string): Promise<string> {

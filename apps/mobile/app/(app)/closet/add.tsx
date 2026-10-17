@@ -1,5 +1,11 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { nearestStyleColor, STYLE_COLORS, type UploadedImage } from '@vyra/shared';
+import {
+  type AnalyzeClothingResponse,
+  LOW_CONFIDENCE,
+  nearestStyleColor,
+  STYLE_COLORS,
+  type UploadedImage,
+} from '@vyra/shared';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { Camera, Check, ImagePlus, Lightbulb, Shirt, Sparkles, X } from 'lucide-react-native';
@@ -42,8 +48,16 @@ import {
 
 type Phase =
   | { name: 'pick' }
-  | { name: 'processing'; previewUri: string }
-  | { name: 'details'; previewUri: string; uploaded: UploadedImage };
+  | { name: 'processing'; step: 'uploading' | 'analyzing'; previewUri: string }
+  | {
+      name: 'details';
+      previewUri: string;
+      uploaded: UploadedImage;
+      /** null when the analysis failed: the user fills the form by hand. */
+      ai: AnalyzeClothingResponse | null;
+    };
+
+type ConfidenceField = keyof AnalyzeClothingResponse['analysis']['confidence'];
 
 const EMPTY_FIELDS: ItemFieldsValue = {
   name: '',
@@ -84,10 +98,14 @@ export default function AddClothingItemScreen() {
     mutationFn: async (source: PhotoSource) => {
       const picked = await pickPhoto(source);
       if (picked.status !== 'picked') return picked;
-      setPhase({ name: 'processing', previewUri: picked.photo.uri });
+      setPhase({ name: 'processing', step: 'uploading', previewUri: picked.photo.uri });
       const prepared = await preparePhoto(picked.photo);
       const uploaded = await closetApi.uploadImage(await toUploadForm(prepared));
-      return { status: 'uploaded' as const, uploaded, previewUri: picked.photo.uri };
+      pendingUpload.current = uploaded;
+      setPhase({ name: 'processing', step: 'analyzing', previewUri: picked.photo.uri });
+      // The analysis only pre-fills the form: if it fails, the user simply types it in.
+      const ai = await closetApi.analyze(uploaded.imageKey).catch(() => null);
+      return { status: 'uploaded' as const, uploaded, ai, previewUri: picked.photo.uri };
     },
     onSuccess: (result, source) => {
       if (result.status === 'denied') {
@@ -96,12 +114,25 @@ export default function AddClothingItemScreen() {
       }
       if (result.status !== 'uploaded') return;
       haptics.success();
-      pendingUpload.current = result.uploaded;
-      setFields((current) => ({
-        ...current,
-        color: current.color ?? nearestStyleColor(result.uploaded.dominantColorHex),
-      }));
-      setPhase({ name: 'details', previewUri: result.previewUri, uploaded: result.uploaded });
+      const analysis = result.ai?.analysis;
+      setFields(
+        analysis
+          ? {
+              name: analysis.name,
+              category: analysis.category,
+              subcategory: analysis.subcategory ?? '',
+              color: analysis.color,
+              style: analysis.style,
+              season: analysis.season,
+            }
+          : { ...EMPTY_FIELDS, color: nearestStyleColor(result.uploaded.dominantColorHex) },
+      );
+      setPhase({
+        name: 'details',
+        previewUri: result.previewUri,
+        uploaded: result.uploaded,
+        ai: result.ai,
+      });
     },
     onError: () => {
       haptics.error();
@@ -110,8 +141,21 @@ export default function AddClothingItemScreen() {
   });
 
   const save = useMutation({
-    mutationFn: (uploaded: UploadedImage) => {
+    mutationFn: ({
+      uploaded,
+      ai,
+    }: {
+      uploaded: UploadedImage;
+      ai: AnalyzeClothingResponse | null;
+    }) => {
       const color = fields.color!;
+      const analysis = ai?.analysis;
+      // Which suggestions the user overrode: precious feedback for future models.
+      const corrected = analysis
+        ? (['name', 'category', 'color', 'style', 'season'] as const).filter(
+            (field) => fields[field] !== analysis[field],
+          )
+        : [];
       return closetApi.create({
         name: fields.name,
         category: fields.category!,
@@ -119,14 +163,20 @@ export default function AddClothingItemScreen() {
         color,
         // The photo's own shade when it is close to the chosen color family.
         colorHex:
-          nearestStyleColor(uploaded.dominantColorHex) === color
-            ? uploaded.dominantColorHex
-            : STYLE_COLORS[color],
+          analysis?.color === color
+            ? analysis.colorHex
+            : nearestStyleColor(uploaded.dominantColorHex) === color
+              ? uploaded.dominantColorHex
+              : STYLE_COLORS[color],
         style: fields.style ?? undefined,
         season: fields.season,
         imageKey: uploaded.imageKey,
         thumbnailKey: uploaded.thumbnailKey,
-        metadata: { source: 'upload', dominantColorHex: uploaded.dominantColorHex },
+        metadata: {
+          source: 'upload',
+          dominantColorHex: uploaded.dominantColorHex,
+          ...(ai ? { analysis: ai.analysis, provider: ai.provider, corrected } : {}),
+        },
       });
     },
     onSuccess: (item) => {
@@ -175,7 +225,12 @@ export default function AddClothingItemScreen() {
   );
 
   if (phase.name === 'details') {
-    const suggested = nearestStyleColor(phase.uploaded.dominantColorHex);
+    const confidence = phase.ai?.analysis.confidence;
+    const toCheck = confidence
+      ? (Object.keys(confidence) as ConfidenceField[]).filter(
+          (field) => confidence[field] < LOW_CONFIDENCE,
+        )
+      : [];
     return (
       <Screen
         keyboard
@@ -188,7 +243,7 @@ export default function AddClothingItemScreen() {
               testID="add-save"
               label={t('addItem.save')}
               icon={Check}
-              onPress={() => save.mutate(phase.uploaded)}
+              onPress={() => save.mutate({ uploaded: phase.uploaded, ai: phase.ai })}
               loading={save.isPending}
               disabled={!isItemFieldsComplete(fields)}
             />
@@ -204,18 +259,26 @@ export default function AddClothingItemScreen() {
             style={styles.detailsImage}
           />
           <View style={styles.detailsPreviewCopy}>
-            {suggested && (
-              <View style={styles.suggestion}>
-                <View
-                  style={[
-                    styles.suggestionDot,
-                    { backgroundColor: phase.uploaded.dominantColorHex },
-                  ]}
-                />
-                <Text variant="caption" color="secondary" style={styles.flex}>
-                  {t('addItem.colorSuggested')} · {t(`colors.${suggested}`)}
-                </Text>
+            {phase.ai ? (
+              <View style={styles.aiNote} testID="add-ai-note">
+                <View style={styles.suggestion}>
+                  <Sparkles size={14} color={colors.accent} />
+                  <Text variant="caption" style={styles.flex}>
+                    {t('addItem.aiPrefilled')}
+                  </Text>
+                </View>
+                {toCheck.length > 0 && (
+                  <Text variant="caption" color="secondary" testID="add-ai-check">
+                    {t('addItem.aiCheck', {
+                      fields: toCheck.map((field) => t(`closet.${field}`).toLowerCase()).join(', '),
+                    })}
+                  </Text>
+                )}
               </View>
+            ) : (
+              <Text variant="caption" color="secondary" testID="add-ai-unavailable">
+                {t('addItem.aiUnavailable')}
+              </Text>
             )}
             <Button
               label={t('addItem.retake')}
@@ -238,7 +301,7 @@ export default function AddClothingItemScreen() {
     return (
       <Screen scroll={false} edges={['top', 'bottom']} testID="add-processing">
         {header}
-        <ProcessingPreview uri={phase.previewUri} />
+        <ProcessingPreview uri={phase.previewUri} step={phase.step} />
       </Screen>
     );
   }
@@ -325,7 +388,7 @@ function saveError(error: unknown, t: Parameters<typeof errorMessage>[1], limit:
 }
 
 /** The picked photo with a slow scanning light while it is prepared and uploaded. */
-function ProcessingPreview({ uri }: { uri: string }) {
+function ProcessingPreview({ uri, step }: { uri: string; step: 'uploading' | 'analyzing' }) {
   const { t } = useTranslation();
   const progress = useSharedValue(0);
 
@@ -346,7 +409,7 @@ function ProcessingPreview({ uri }: { uri: string }) {
       <View style={styles.processingLabel}>
         <Sparkles size={16} color={colors.accent} />
         <Text variant="callout" color="secondary">
-          {t('addItem.uploading')}
+          {step === 'analyzing' ? t('addItem.analyzing') : t('addItem.uploading')}
         </Text>
       </View>
     </Animated.View>
@@ -457,11 +520,5 @@ const styles = StyleSheet.create({
   },
   detailsPreviewCopy: { flex: 1, gap: spacing.sm, alignItems: 'flex-start' },
   suggestion: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  suggestionDot: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    borderWidth: StyleSheet.hairlineWidth * 2,
-    borderColor: colors.border,
-  },
+  aiNote: { gap: spacing.xs },
 });

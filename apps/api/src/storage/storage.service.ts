@@ -8,6 +8,8 @@ export abstract class StorageService {
   /** Idempotent: deleting a missing object is not an error. */
   abstract delete(key: string): Promise<void>;
   abstract exists(key: string): Promise<boolean>;
+  /** Reads an object (server-side processing such as AI analysis). */
+  abstract download(key: string): Promise<Buffer>;
   /** Signed, expiring URL the client can GET directly. */
   abstract getSignedUrl(key: string): Promise<string>;
 }

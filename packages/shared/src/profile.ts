@@ -22,6 +22,10 @@ export const STYLE_COLORS = {
   pink: '#E3A6A8',
   yellow: '#E2B93B',
   gold: '#C9A45C',
+  burgundy: '#7A2E3A',
+  orange: '#D9782D',
+  purple: '#6B4C8A',
+  silver: '#B8BCC2',
 } as const;
 
 export type StyleColor = keyof typeof STYLE_COLORS;
@@ -138,26 +142,42 @@ function hexToRgb(hex: string): [number, number, number] | null {
   return [(value >> 16) & 0xff, (value >> 8) & 0xff, value & 0xff];
 }
 
+/** sRGB → CIELAB (D65), the color space where Euclidean distance matches perception. */
+function rgbToLab([r, g, b]: [number, number, number]): [number, number, number] {
+  const linear = (c: number) => {
+    const v = c / 255;
+    return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+  };
+  const [lr, lg, lb] = [linear(r), linear(g), linear(b)];
+  const x = (lr * 0.4124 + lg * 0.3576 + lb * 0.1805) / 0.95047;
+  const y = lr * 0.2126 + lg * 0.7152 + lb * 0.0722;
+  const z = (lr * 0.0193 + lg * 0.1192 + lb * 0.9505) / 1.08883;
+  const fn = (t: number) => (t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116);
+  const [fx, fy, fz] = [fn(x), fn(y), fn(z)];
+  return [116 * fy - 16, 500 * (fx - fy), 200 * (fy - fz)];
+}
+
+const PALETTE_LAB = STYLE_COLOR_NAMES.map((name) => ({
+  name,
+  lab: rgbToLab(hexToRgb(STYLE_COLORS[name])!),
+}));
+
 /**
- * Closest vocabulary color to a hex value, using a perceptually weighted RGB
- * distance ("redmean"), good enough to pre-select a color from a photo.
+ * Closest vocabulary color to a hex value (CIE76 ΔE in Lab space), used to
+ * turn a measured photo color into a palette color the engine understands.
  */
 export function nearestStyleColor(hex: string): StyleColor | null {
-  const target = hexToRgb(hex);
-  if (!target) return null;
+  const rgb = hexToRgb(hex);
+  if (!rgb) return null;
+  const [l, a, b] = rgbToLab(rgb);
   let best: StyleColor | null = null;
   let bestDistance = Number.POSITIVE_INFINITY;
-  for (const name of STYLE_COLOR_NAMES) {
-    const [r, g, b] = hexToRgb(STYLE_COLORS[name])!;
-    const meanRed = (target[0] + r) / 2;
-    const dr = target[0] - r;
-    const dg = target[1] - g;
-    const db = target[2] - b;
-    const distance =
-      (2 + meanRed / 256) * dr * dr + 4 * dg * dg + (2 + (255 - meanRed) / 256) * db * db;
+  for (const candidate of PALETTE_LAB) {
+    const [l2, a2, b2] = candidate.lab;
+    const distance = (l - l2) ** 2 + (a - a2) ** 2 + (b - b2) ** 2;
     if (distance < bestDistance) {
       bestDistance = distance;
-      best = name;
+      best = candidate.name;
     }
   }
   return best;

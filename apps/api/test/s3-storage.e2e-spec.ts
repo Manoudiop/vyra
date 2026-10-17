@@ -43,6 +43,7 @@ describe('S3StorageAdapter against MinIO (integration)', () => {
     expect(await adapter.exists(key)).toBe(false);
     await adapter.upload(key, body, 'image/webp');
     expect(await adapter.exists(key)).toBe(true);
+    expect((await adapter.download(key)).equals(body)).toBe(true);
 
     const url = await adapter.getSignedUrl(key);
     expect(url).toContain('X-Amz-Signature=');

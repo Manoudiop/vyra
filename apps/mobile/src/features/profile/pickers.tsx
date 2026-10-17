@@ -154,10 +154,13 @@ export function ColorPicker({
   value,
   onChange,
   max,
+  single = false,
 }: {
   value: StyleColor[];
   onChange: (value: StyleColor[]) => void;
   max: number;
+  /** Radio behaviour: tapping a color replaces the selection. */
+  single?: boolean;
 }) {
   const { t } = useTranslation();
   return (
@@ -170,13 +173,13 @@ export function ColorPicker({
           <PressableScale
             key={name}
             testID={`color-${name}`}
-            accessibilityRole="checkbox"
+            accessibilityRole={single ? 'radio' : 'checkbox'}
             accessibilityState={{ checked: selected }}
             accessibilityLabel={t(`colors.${name}`)}
             pressedScale={0.92}
             onPress={() => {
               haptics.selection();
-              onChange(toggleWithLimit(value, name, max));
+              onChange(single ? [name] : toggleWithLimit(value, name, max));
             }}
             style={styles.swatchSlot}
           >

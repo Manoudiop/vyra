@@ -3,7 +3,7 @@ import { profileSchema } from '@vyra/shared';
 import request from 'supertest';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { createTestApp } from './create-test-app';
-import { registerTestUser, TEST_EMAIL_DOMAIN } from './helpers';
+import { cleanupSuiteUsers, registerTestUser } from './helpers';
 
 const ONBOARDING = {
   firstName: 'Awa',
@@ -26,7 +26,7 @@ describe('Profile (e2e)', () => {
   });
 
   afterAll(async () => {
-    await prisma.user.deleteMany({ where: { email: { endsWith: TEST_EMAIL_DOMAIN } } });
+    await cleanupSuiteUsers(prisma);
     await app.close();
   });
 

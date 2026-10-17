@@ -14,7 +14,8 @@ Plan d'implémentation et décisions : [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEM
 | 3      | Authentification API (JWT, refresh rotatif, reset par code, guards)  | ✅      |
 | 4      | Design system, navigation 5 onglets, écrans d'auth, routes protégées | ✅      |
 | 5      | Onboarding en 8 étapes, profil et préférences de style éditables     | ✅      |
-| 6 → 18 | Dressing, stockage, IA, calendrier, abonnements…                     | à venir |
+| 6      | Dressing : grille, recherche, filtres, détail, édition, suppression  | ✅      |
+| 7 → 18 | Upload d'images, IA, styliste, calendrier, abonnements…              | à venir |
 
 ## Structure
 
@@ -82,6 +83,7 @@ Lancer une seule app : `pnpm --filter @vyra/api dev`, `pnpm --filter @vyra/mobil
 - **Design system** (`src/ui`) : tokens de `@vyra/config/tokens`, typo Manrope, `Button`, `TextField`, `Card`, `Chip`, `IconButton`, `Screen` (safe areas, clavier, pull-to-refresh), `ScreenHeader`, `Skeleton`, `EmptyState`, `ErrorState`, retours haptiques (natif uniquement), icônes Lucide.
 - **i18n** : français par défaut, anglais si l'appareil est en anglais (`src/i18n`, clés typées : `en.ts` doit refléter `fr.ts`).
 - **Onboarding** (`app/(app)/onboarding.tsx`) : 8 étapes (accueil, prénom, vestiaire, styles, couleurs, occasions, ville, récapitulatif), obligatoire tant que le profil n'est pas complété — garde `Stack.Protected` sur `user.onboardingCompleted`. Brouillon en mémoire (Zustand) conservé en revenant en arrière, réinitialisé à la déconnexion. Les réponses partent en une seule requête à la fin. Une ville choisie dans les suggestions renseigne aussi le pays et le fuseau horaire (sinon : fuseau de l'appareil).
+- **Dressing** (onglet Dressing) : grille 2 colonnes (FlashList), recherche avec délai (300 ms), filtres par catégorie avec compteurs, favoris (mise à jour optimiste avec retour arrière en cas d'erreur), pagination infinie, tirer-pour-rafraîchir, squelettes et états vides. Détail (`app/(app)/closet/[id]`) avec statistiques d'usage, édition en modal, retrait avec confirmation. L'ajout par photo arrive avec les phases 7–8.
 - **Édition du profil** : Profil → « Préférences de style » (`app/(app)/edit-profile.tsx`), mêmes sélecteurs que l'onboarding (`src/features/profile/pickers.tsx`).
 - **Formulaires** : React Hook Form + Zod, messages traduits ; l'API revalide tout avec `@vyra/shared`.
 - `pnpm --filter @vyra/mobile typecheck` génère d'abord les types des routes typées (`scripts/typegen.js`) — pas besoin de lancer Metro.
@@ -126,6 +128,8 @@ Toutes passent par une interface avec une implémentation mock sélectionnée pa
 
 - Préfixe `/api`, documentation Swagger sur `/api/docs` (désactivée en production).
 - **Profil** (`/api/profile`) : `GET` (profil + préférences déclarées), `PUT /onboarding` (toutes les réponses, atomique, idempotent : conserve la date de première complétion), `PATCH` (n'importe quel sous-ensemble). Vocabulaire des couleurs partagé : `STYLE_COLORS` dans `@vyra/shared` (réutilisé par le dressing et le moteur de looks).
+- **Dressing** (`/api/closet`) : `GET` (recherche nom/type/couleur, `category`, `favorite`, pagination par curseur), `GET /summary` (compteurs par catégorie + limite du plan), `GET /:id` (avec statistiques : looks, nombre de ports, dernier port), `POST` (les clés d'image doivent être sous `users/<id>/` ; limite FREE de 30 pièces → `LIMIT_REACHED`), `PATCH /:id`, `DELETE /:id` (archivage : les looks passés gardent la pièce). Une pièce d'un autre compte répond `404`, comme une pièce inexistante.
+- **Images** : l'API ne stocke que des clés et renvoie des URLs signées valables ~1 h (arrondies à l'heure pour que l'app puisse les mettre en cache). En dev, `GET /api/storage/files/...?exp&sig` sert les fichiers locaux après vérification HMAC.
 - Sondes : `GET /api/health` (processus vivant) et `GET /api/health/ready` (base joignable, sinon 503).
 - Format d'erreur unique : `{ "error": { "code": "NOT_FOUND", "message": "...", "details": ... } }` — codes dans `packages/shared/src/errors.ts`. Aucune stack trace n'est renvoyée au client.
 - **Authentification** (`/api/auth`) : `register`, `login`, `refresh`, `logout`, `forgot-password`, `reset-password` ; `GET /api/users/me`.
@@ -143,4 +147,4 @@ Toutes passent par une interface avec une implémentation mock sélectionnée pa
 pnpm test
 ```
 
-Les tests e2e de l'API démarrent l'application complète avec le même pipeline HTTP que la production (`apps/api/src/bootstrap/configure-app.ts`). Ils tournent sur une base dédiée `vyra_test`, créée et migrée automatiquement (`apps/api/test/global-setup.ts`) — PostgreSQL doit être démarré (`pnpm db:up`). La suite refuse de s'exécuter sur une base dont le nom ne finit pas par `_test`.
+Les tests e2e de l'API démarrent l'application complète avec le même pipeline HTTP que la production (`apps/api/src/bootstrap/configure-app.ts`). Chaque suite ne supprime que les comptes qu'elle a créés (les suites tournent en parallèle). Ils tournent sur une base dédiée `vyra_test`, créée et migrée automatiquement (`apps/api/test/global-setup.ts`) — PostgreSQL doit être démarré (`pnpm db:up`). La suite refuse de s'exécuter sur une base dont le nom ne finit pas par `_test`.

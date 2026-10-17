@@ -3,6 +3,7 @@ import { APP_GUARD, APP_PIPE } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { ZodValidationPipe } from 'nestjs-zod';
 import { AuthModule } from './auth/auth.module';
+import { ClosetModule } from './closet/closet.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
 import { AppConfigModule } from './config/app-config.module';
@@ -10,6 +11,7 @@ import { HealthModule } from './health/health.module';
 import { MailModule } from './mail/mail.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { ProfilesModule } from './profiles/profiles.module';
+import { StorageModule } from './storage/storage.module';
 import { UsersModule } from './users/users.module';
 
 @Module({
@@ -23,6 +25,8 @@ import { UsersModule } from './users/users.module';
     AuthModule,
     UsersModule,
     ProfilesModule,
+    StorageModule,
+    ClosetModule,
   ],
   providers: [
     { provide: APP_PIPE, useClass: ZodValidationPipe },

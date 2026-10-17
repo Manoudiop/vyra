@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto';
 import { type INestApplication } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { authSessionSchema, authUserSchema } from '@vyra/shared';
@@ -7,6 +6,7 @@ import { MAIL_PROVIDER } from '../src/mail/mail.provider';
 import { type MockMailProvider } from '../src/mail/mock-mail.provider';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { createTestApp } from './create-test-app';
+import { cleanupSuiteUsers, newTestEmail } from './helpers';
 
 const PASSWORD = 'letters123';
 
@@ -15,7 +15,7 @@ describe('Auth (e2e)', () => {
   let prisma: PrismaService;
   let mail: MockMailProvider;
   const http = () => request(app.getHttpServer());
-  const newEmail = () => `user-${randomUUID()}@test.vyra.dev`;
+  const newEmail = newTestEmail;
 
   async function register(email = newEmail(), password = PASSWORD) {
     const res = await http()
@@ -32,7 +32,7 @@ describe('Auth (e2e)', () => {
   });
 
   afterAll(async () => {
-    await prisma.user.deleteMany({ where: { email: { endsWith: '@test.vyra.dev' } } });
+    await cleanupSuiteUsers(prisma);
     await app.close();
   });
 

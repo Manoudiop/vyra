@@ -6,7 +6,21 @@ import request from 'supertest';
 /** All e2e accounts use this domain so suites can clean up after themselves. */
 export const TEST_EMAIL_DOMAIN = '@test.vyra.dev';
 
-export const newTestEmail = () => `user-${randomUUID()}${TEST_EMAIL_DOMAIN}`;
+/**
+ * Jest gives each test file its own module registry, so this id is unique per
+ * suite. Suites run in parallel against one database: each must only ever
+ * clean up the accounts it created.
+ */
+const SUITE_ID = randomUUID().slice(0, 8);
+
+export const newTestEmail = () => `user-${SUITE_ID}-${randomUUID()}${TEST_EMAIL_DOMAIN}`;
+
+/** Deletes the accounts created by the current suite (cascades to all their data). */
+export async function cleanupSuiteUsers(prisma: {
+  user: { deleteMany(args: { where: { email: { startsWith: string } } }): Promise<unknown> };
+}): Promise<void> {
+  await prisma.user.deleteMany({ where: { email: { startsWith: `user-${SUITE_ID}-` } } });
+}
 
 export interface TestUser {
   email: string;

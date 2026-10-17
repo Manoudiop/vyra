@@ -104,16 +104,10 @@ const amina: DemoUser = {
       { shape: 'shirt', colorHex: '#F5F2EA' },
       true,
     ),
-    item(
-      'silk-top',
-      'Top en soie champagne',
-      'TOPS',
-      'blouse',
-      'champagne',
-      'ELEGANT',
-      'ALL_SEASON',
-      { shape: 'tshirt', colorHex: '#E6D3B3' },
-    ),
+    item('silk-top', 'Top en soie champagne', 'TOPS', 'blouse', 'cream', 'ELEGANT', 'ALL_SEASON', {
+      shape: 'tshirt',
+      colorHex: '#E6D3B3',
+    }),
     item('striped-tee', 'T-shirt marinière', 'TOPS', 't-shirt', 'navy', 'CASUAL', 'SUMMER', {
       shape: 'tshirt',
       colorHex: '#F4F1EA',
@@ -145,7 +139,7 @@ const amina: DemoUser = {
       'ALL_SEASON',
       { shape: 'pants', colorHex: '#1C1C1C' },
     ),
-    item('jeans', 'Jean droit brut', 'BOTTOMS', 'jeans', 'indigo', 'CASUAL', 'ALL_SEASON', {
+    item('jeans', 'Jean droit brut', 'BOTTOMS', 'jeans', 'blue', 'CASUAL', 'ALL_SEASON', {
       shape: 'pants',
       colorHex: '#2F4A73',
       pattern: 'denim',
@@ -160,7 +154,7 @@ const amina: DemoUser = {
       'SUMMER',
       { shape: 'skirt', colorHex: '#B5573B' },
     ),
-    item('slip-dress', 'Robe nuisette émeraude', 'OTHER', 'dress', 'emerald', 'ELEGANT', 'SUMMER', {
+    item('slip-dress', 'Robe nuisette émeraude', 'OTHER', 'dress', 'green', 'ELEGANT', 'SUMMER', {
       shape: 'dress',
       colorHex: '#1F5E4B',
     }),
@@ -180,7 +174,7 @@ const amina: DemoUser = {
       'Trench classique',
       'OUTERWEAR',
       'trench coat',
-      'sand',
+      'beige',
       'SMART_CASUAL',
       'AUTUMN',
       { shape: 'coat', colorHex: '#C9AE84' },
@@ -190,7 +184,7 @@ const amina: DemoUser = {
       'Grand boubou brodé or',
       'TRADITIONAL',
       'boubou',
-      'ivory',
+      'cream',
       'TRADITIONAL',
       'ALL_SEASON',
       { shape: 'robe', colorHex: '#F1EADB', accentHex: '#B79B72' },
@@ -226,16 +220,10 @@ const amina: DemoUser = {
       'ALL_SEASON',
       { shape: 'sneaker', colorHex: '#F7F6F2' },
     ),
-    item(
-      'loafers',
-      'Mocassins cognac',
-      'SHOES',
-      'loafers',
-      'cognac',
-      'SMART_CASUAL',
-      'ALL_SEASON',
-      { shape: 'shoe', colorHex: '#8A4F2A' },
-    ),
+    item('loafers', 'Mocassins cognac', 'SHOES', 'loafers', 'brown', 'SMART_CASUAL', 'ALL_SEASON', {
+      shape: 'shoe',
+      colorHex: '#8A4F2A',
+    }),
     item('gold-heels', 'Sandales à talon dorées', 'SHOES', 'heels', 'gold', 'ELEGANT', 'SUMMER', {
       shape: 'heel',
       colorHex: '#C9A45C',
@@ -378,7 +366,7 @@ const karim: DemoUser = {
       'Chemise oxford bleu ciel',
       'TOPS',
       'shirt',
-      'light blue',
+      'blue',
       'SMART_CASUAL',
       'ALL_SEASON',
       { shape: 'shirt', colorHex: '#A9C3DE' },
@@ -423,11 +411,11 @@ const karim: DemoUser = {
       colorHex: '#232323',
       pattern: 'denim',
     }),
-    item('cargo', 'Cargo kaki', 'BOTTOMS', 'cargo pants', 'khaki', 'STREETWEAR', 'ALL_SEASON', {
+    item('cargo', 'Cargo kaki', 'BOTTOMS', 'cargo pants', 'olive', 'STREETWEAR', 'ALL_SEASON', {
       shape: 'pants',
       colorHex: '#7A7253',
     }),
-    item('shorts', 'Short en lin écru', 'BOTTOMS', 'shorts', 'ecru', 'CASUAL', 'SUMMER', {
+    item('shorts', 'Short en lin écru', 'BOTTOMS', 'shorts', 'cream', 'CASUAL', 'SUMMER', {
       shape: 'shorts',
       colorHex: '#E7DECB',
     }),
@@ -446,7 +434,7 @@ const karim: DemoUser = {
       'Agbada bleu nuit brodé',
       'TRADITIONAL',
       'agbada',
-      'midnight blue',
+      'navy',
       'TRADITIONAL',
       'ALL_SEASON',
       { shape: 'robe', colorHex: '#1B2340', accentHex: '#C9A45C' },
@@ -457,7 +445,7 @@ const karim: DemoUser = {
       'Chemise dashiki',
       'TRADITIONAL',
       'dashiki',
-      'orange',
+      'terracotta',
       'TRADITIONAL',
       'SUMMER',
       { shape: 'tshirt', colorHex: '#C8641E', pattern: 'wax', accentHex: '#1E1E1E' },
@@ -487,7 +475,7 @@ const karim: DemoUser = {
       shape: 'shoe',
       colorHex: '#5A3A22',
     }),
-    item('watch', 'Montre acier', 'ACCESSORIES', 'watch', 'silver', 'SMART_CASUAL', 'ALL_SEASON', {
+    item('watch', 'Montre acier', 'ACCESSORIES', 'watch', 'grey', 'SMART_CASUAL', 'ALL_SEASON', {
       shape: 'watch',
       colorHex: '#3C3F44',
       accentHex: '#1F2A44',

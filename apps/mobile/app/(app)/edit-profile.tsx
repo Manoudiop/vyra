@@ -9,7 +9,6 @@ import {
   type UpdateProfileInput,
 } from '@vyra/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { router } from 'expo-router';
 import { ArrowLeft, MapPin } from 'lucide-react-native';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -20,6 +19,7 @@ import { CITY_SUGGESTIONS, findCitySuggestion } from '@/features/profile/cities'
 import { ColorPicker, GenderPicker, OccasionPicker, StylePicker } from '@/features/profile/pickers';
 import { profileApi, profileQueryKey } from '@/features/profile/profile-api';
 import { errorMessage } from '@/lib/errors';
+import { goBackOr } from '@/lib/navigation';
 import {
   Button,
   Chip,
@@ -92,7 +92,7 @@ function Header() {
       <IconButton
         icon={ArrowLeft}
         accessibilityLabel={t('common.back')}
-        onPress={() => router.back()}
+        onPress={() => goBackOr('/profile')}
       />
       <Text variant="title1" accessibilityRole="header">
         {t('editProfile.title')}

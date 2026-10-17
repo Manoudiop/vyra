@@ -1,23 +1,42 @@
 import { useQuery } from '@tanstack/react-query';
-import { type ClothingItem, type Outfit } from '@vyra/shared';
+import {
+  type ClothingItem,
+  DISLIKE_REASONS,
+  type DislikeReason,
+  type FeedbackRating,
+  type Outfit,
+} from '@vyra/shared';
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, RefreshCw, Sparkles } from 'lucide-react-native';
+import {
+  ArrowLeft,
+  Bookmark,
+  Check,
+  Heart,
+  type LucideIcon,
+  RefreshCw,
+  Shirt,
+  Sparkles,
+  ThumbsDown,
+} from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
-import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { FormBanner } from '@/features/auth/components';
 import { GeneratingOverlay } from '@/features/stylist/GeneratingOverlay';
 import { outfitKeys, stylistApi } from '@/features/stylist/stylist-api';
 import { useGenerateOutfit } from '@/features/stylist/use-generate-outfit';
+import { useOutfitAction } from '@/features/stylist/use-outfit-actions';
 import { errorMessage } from '@/lib/errors';
 import { goBackOr } from '@/lib/navigation';
 import {
   Button,
   Card,
+  Chip,
   colors,
   colorsAlpha,
   ErrorState,
+  haptics,
   IconButton,
   PressableScale,
   radii,
@@ -29,13 +48,14 @@ import {
 } from '@/ui';
 
 export default function OutfitScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { id, exclude } = useLocalSearchParams<{ id: string; exclude?: string }>();
   const outfit = useQuery({
     queryKey: outfitKeys.detail(id),
     queryFn: () => stylistApi.getOutfit(id),
   });
   const another = useGenerateOutfit();
+  const action = useOutfitAction(id);
 
   const back = (
     <IconButton
@@ -86,14 +106,57 @@ export default function OutfitScreen() {
     );
   };
 
+  const errorText = action.isError
+    ? errorMessage(action.error, t)
+    : another.isError
+      ? errorMessage(another.error, t)
+      : null;
+  const lastWorn =
+    data.lastWornAt && !data.wornToday
+      ? new Date(data.lastWornAt).toLocaleDateString(i18n.language, {
+          day: 'numeric',
+          month: 'long',
+        })
+      : null;
+
   return (
     <View style={styles.root}>
       <Screen
         testID="outfit-screen"
         footer={
           <View style={styles.footer}>
-            {another.isError && (
-              <FormBanner tone="error" message={errorMessage(another.error, t)} />
+            {errorText && <FormBanner tone="error" message={errorText} />}
+            {data.wornToday ? (
+              <Animated.View
+                entering={FadeIn.duration(260)}
+                style={styles.worn}
+                testID="outfit-worn"
+              >
+                <View style={styles.wornIcon}>
+                  <Check size={16} color={colors.onPrimary} strokeWidth={3} />
+                </View>
+                <Text variant="bodyStrong" style={styles.wornLabel}>
+                  {t('outfit.wornToday')}
+                </Text>
+                <Button
+                  testID="outfit-unwear"
+                  label={t('outfit.undo')}
+                  variant="ghost"
+                  size="md"
+                  fullWidth={false}
+                  onPress={() => action.mutate({ type: 'wear', worn: false })}
+                />
+              </Animated.View>
+            ) : (
+              <Button
+                testID="outfit-wear"
+                label={t('outfit.wearToday')}
+                icon={Shirt}
+                onPress={() => {
+                  haptics.success();
+                  action.mutate({ type: 'wear', worn: true });
+                }}
+              />
             )}
             <Button
               testID="outfit-another"
@@ -106,7 +169,16 @@ export default function OutfitScreen() {
           </View>
         }
       >
-        <View style={styles.header}>{back}</View>
+        <View style={[styles.header, styles.headerRow]}>
+          {back}
+          <IconButton
+            testID="outfit-save"
+            icon={Bookmark}
+            selected={data.isSaved}
+            accessibilityLabel={data.isSaved ? t('outfit.unsave') : t('outfit.save')}
+            onPress={() => action.mutate({ type: 'save', isSaved: !data.isSaved })}
+          />
+        </View>
         <Animated.View entering={FadeInDown.duration(380)} style={styles.titleBlock}>
           <Text variant="overline" color="secondary">
             {t(`occasions.${data.occasion}`)} · {t(`styles.${data.style}`)}
@@ -114,6 +186,11 @@ export default function OutfitScreen() {
           <Text variant="title1" accessibilityRole="header" testID="outfit-name">
             {data.name}
           </Text>
+          {lastWorn && (
+            <Text variant="footnote" color="secondary" testID="outfit-last-worn">
+              {t('outfit.lastWorn', { date: lastWorn })}
+            </Text>
+          )}
         </Animated.View>
 
         <OutfitBoard items={data.items} />
@@ -131,9 +208,123 @@ export default function OutfitScreen() {
             </Text>
           </Card>
         </Animated.View>
+
+        <Animated.View entering={FadeInUp.delay(350).duration(420)}>
+          <RatingCard
+            feedback={data.feedback}
+            onRate={(rating, reason) =>
+              action.mutate({
+                type: 'rate',
+                feedback: rating ? { rating, ...(reason ? { reason } : {}) } : null,
+              })
+            }
+          />
+        </Animated.View>
       </Screen>
       {another.isPending && <GeneratingOverlay />}
     </View>
+  );
+}
+
+/**
+ * "Love it" / "Not for me". Tapping the active choice again clears it; after
+ * "not for me" an optional one-tap reason helps the stylist learn.
+ */
+function RatingCard({
+  feedback,
+  onRate,
+}: {
+  feedback: Outfit['feedback'];
+  onRate: (rating: FeedbackRating | null, reason?: DislikeReason) => void;
+}) {
+  const { t } = useTranslation();
+  const rating = feedback?.rating ?? null;
+  return (
+    <Card style={styles.rating} testID="outfit-rating">
+      <Text variant="bodyStrong">{t('outfit.rateTitle')}</Text>
+      <View style={styles.rateRow}>
+        <RateButton
+          testID="outfit-love"
+          icon={Heart}
+          label={t('outfit.love')}
+          selected={rating === 'LOVE'}
+          tone="accent"
+          onPress={() => onRate(rating === 'LOVE' ? null : 'LOVE')}
+        />
+        <RateButton
+          testID="outfit-dislike"
+          icon={ThumbsDown}
+          label={t('outfit.dislike')}
+          selected={rating === 'DISLIKE'}
+          tone="primary"
+          onPress={() => onRate(rating === 'DISLIKE' ? null : 'DISLIKE')}
+        />
+      </View>
+      {rating === 'LOVE' && (
+        <Animated.View entering={FadeIn.duration(260)}>
+          <Text variant="footnote" color="secondary" testID="outfit-loved-hint">
+            {t('outfit.lovedHint')}
+          </Text>
+        </Animated.View>
+      )}
+      {rating === 'DISLIKE' && (
+        <Animated.View entering={FadeIn.duration(260)} style={styles.reasons}>
+          <Text variant="footnote" color="secondary" testID="outfit-disliked-hint">
+            {t('outfit.dislikedHint')}
+          </Text>
+          <View style={styles.reasonChips}>
+            {DISLIKE_REASONS.map((reason) => (
+              <Chip
+                key={reason}
+                testID={`reason-${reason}`}
+                label={t(`dislikeReasons.${reason}`)}
+                selected={feedback?.reason === reason}
+                onPress={() => onRate('DISLIKE', feedback?.reason === reason ? undefined : reason)}
+              />
+            ))}
+          </View>
+        </Animated.View>
+      )}
+    </Card>
+  );
+}
+
+function RateButton({
+  icon: Icon,
+  label,
+  selected,
+  tone,
+  onPress,
+  testID,
+}: {
+  icon: LucideIcon;
+  label: string;
+  selected: boolean;
+  tone: 'accent' | 'primary';
+  onPress: () => void;
+  testID: string;
+}) {
+  const fg = selected ? colors.onPrimary : colors.primary;
+  return (
+    <PressableScale
+      testID={testID}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ selected }}
+      onPress={() => {
+        haptics.selection();
+        onPress();
+      }}
+      style={[
+        styles.rateButton,
+        selected && { backgroundColor: colors[tone], borderColor: colors[tone] },
+      ]}
+    >
+      <Icon size={18} color={fg} fill={selected ? fg : 'none'} strokeWidth={2} />
+      <Text variant="bodyStrong" style={{ color: fg }}>
+        {label}
+      </Text>
+    </PressableScale>
   );
 }
 
@@ -187,6 +378,7 @@ function PieceTile({ item, wide }: { item: ClothingItem; wide: boolean }) {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   header: { paddingTop: spacing.md, paddingBottom: spacing.lg },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   loading: { gap: spacing.lg },
   titleBlock: { gap: spacing.xs, marginBottom: spacing.xl },
   board: { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -spacing.xs },
@@ -211,5 +403,39 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  rating: { gap: spacing.md, marginTop: spacing.lg },
+  rateRow: { flexDirection: 'row', gap: spacing.sm },
+  rateButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    minHeight: 48,
+    borderRadius: radii.pill,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  reasons: { gap: spacing.md },
+  reasonChips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  worn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    minHeight: 56,
+    paddingLeft: spacing.lg,
+    borderRadius: radii.pill,
+    backgroundColor: colorsAlpha.successSoft,
+  },
+  wornIcon: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: colors.success,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  wornLabel: { flex: 1 },
   footer: { gap: spacing.md },
 });

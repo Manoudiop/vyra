@@ -2,6 +2,12 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "name": "vyra-api",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@vyra/api", "dev"],
+      "port": 4100
+    },
+    {
       "name": "vyra-mobile-web",
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["--filter", "@vyra/mobile", "web"],

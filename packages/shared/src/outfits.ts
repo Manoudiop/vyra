@@ -27,6 +27,41 @@ export const generateOutfitRequestSchema = z.object({
 });
 export type GenerateOutfitRequest = z.input<typeof generateOutfitRequestSchema>;
 
+/** "Love it" / "Not for me". */
+export const FEEDBACK_RATINGS = ['LOVE', 'DISLIKE'] as const;
+export const feedbackRatingSchema = z.enum(FEEDBACK_RATINGS);
+export type FeedbackRating = z.infer<typeof feedbackRatingSchema>;
+
+/** Optional one-tap reason after "Not for me", kept for style learning (phase 12). */
+export const DISLIKE_REASONS = ['NOT_MY_STYLE', 'COLORS', 'OCCASION', 'ONE_PIECE'] as const;
+export const dislikeReasonSchema = z.enum(DISLIKE_REASONS);
+export type DislikeReason = z.infer<typeof dislikeReasonSchema>;
+
+export const outfitFeedbackInputSchema = z
+  .object({
+    rating: feedbackRatingSchema,
+    reason: dislikeReasonSchema.optional(),
+  })
+  .refine((input) => input.rating === 'DISLIKE' || !input.reason, {
+    message: 'A reason only applies to "Not for me"',
+    path: ['reason'],
+  });
+export type OutfitFeedbackInput = z.infer<typeof outfitFeedbackInputSchema>;
+
+export const updateOutfitSchema = z.object({ isSaved: z.boolean() });
+export type UpdateOutfitInput = z.infer<typeof updateOutfitSchema>;
+
+export const OUTFITS_PAGE_SIZE = 20;
+export const outfitsQuerySchema = z.object({
+  saved: z
+    .enum(['true', 'false'])
+    .transform((value) => value === 'true')
+    .optional(),
+  cursor: z.uuid().optional(),
+  limit: z.coerce.number().int().min(1).max(50).default(OUTFITS_PAGE_SIZE),
+});
+export type OutfitsQuery = z.input<typeof outfitsQuerySchema>;
+
 export const outfitSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -38,9 +73,22 @@ export const outfitSchema = z.object({
   constraints: outfitConstraintsSchema.nullable(),
   /** Pieces in display order (outerwear, top or one-piece, bottom, shoes, accessories). */
   items: z.array(clothingItemSchema),
+  /** The user's rating of this look, if any. */
+  feedback: z
+    .object({ rating: feedbackRatingSchema, reason: dislikeReasonSchema.nullable() })
+    .nullable(),
+  /** Worn on the current day in the user's timezone. */
+  wornToday: z.boolean(),
+  lastWornAt: z.string().nullable(),
   createdAt: z.string(),
 });
 export type Outfit = z.infer<typeof outfitSchema>;
+
+export const outfitPageSchema = z.object({
+  items: z.array(outfitSchema),
+  nextCursor: z.string().nullable(),
+});
+export type OutfitPage = z.infer<typeof outfitPageSchema>;
 
 export const generateOutfitResponseSchema = z.object({
   outfit: outfitSchema,

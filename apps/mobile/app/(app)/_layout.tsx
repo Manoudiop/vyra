@@ -23,6 +23,7 @@ export default function AppLayout() {
         <Stack.Screen name="closet/[id]/index" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="closet/[id]/edit" options={{ presentation: 'modal' }} />
         <Stack.Screen name="outfit/[id]" options={{ animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="saved-outfits" options={{ animation: 'slide_from_right' }} />
       </Stack.Protected>
       <Stack.Protected guard={!onboarded}>
         <Stack.Screen name="onboarding" options={{ animation: 'fade', gestureEnabled: false }} />

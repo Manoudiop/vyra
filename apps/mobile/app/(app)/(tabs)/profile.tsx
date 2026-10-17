@@ -1,5 +1,6 @@
 import {
   Bell,
+  Bookmark,
   ChevronRight,
   Crown,
   LogOut,
@@ -108,6 +109,13 @@ export default function ProfileScreen() {
           icon={Palette}
           label={t('profile.stylePreferences')}
           onPress={() => router.push('/edit-profile')}
+        />
+        <View style={styles.divider} />
+        <Row
+          testID="profile-saved-outfits"
+          icon={Bookmark}
+          label={t('profile.savedOutfits')}
+          onPress={() => router.push('/saved-outfits')}
         />
         <View style={styles.divider} />
         <Row icon={Crown} label={t('profile.subscription')} />

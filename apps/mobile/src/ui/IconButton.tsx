@@ -9,6 +9,8 @@ export interface IconButtonProps {
   accessibilityLabel: string;
   onPress: () => void;
   variant?: 'surface' | 'plain';
+  /** Toggle buttons (save…): the icon fills when selected. */
+  selected?: boolean;
   testID?: string;
 }
 
@@ -17,6 +19,7 @@ export function IconButton({
   accessibilityLabel,
   onPress,
   variant = 'surface',
+  selected,
   testID,
 }: IconButtonProps) {
   return (
@@ -24,6 +27,7 @@ export function IconButton({
       testID={testID}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
+      accessibilityState={selected === undefined ? undefined : { selected }}
       hitSlop={hitSlop}
       pressedScale={0.92}
       onPress={() => {
@@ -32,7 +36,12 @@ export function IconButton({
       }}
       style={[styles.base, variant === 'surface' && styles.surface]}
     >
-      <Icon size={20} color={colors.primary} strokeWidth={2} />
+      <Icon
+        size={20}
+        color={colors.primary}
+        fill={selected ? colors.primary : 'none'}
+        strokeWidth={2}
+      />
     </PressableScale>
   );
 }

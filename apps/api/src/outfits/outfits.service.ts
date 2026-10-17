@@ -1,17 +1,23 @@
 import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 import {
+  dislikeReasonSchema,
   type GenerateOutfitResponse,
   type generateOutfitRequestSchema,
   type Outfit,
   type OutfitConstraints,
   outfitConstraintsSchema,
+  type OutfitFeedbackInput,
+  type OutfitPage,
+  type outfitsQuerySchema,
   type Style,
+  type UpdateOutfitInput,
 } from '@vyra/shared';
 import { type z } from 'zod';
 import { type AIClothingItem, AIProvider, type OutfitCandidate } from '../ai/ai.provider';
 import { explainOutfit, outfitName } from '../ai/mock/stylist-copy';
 import { ClosetService } from '../closet/closet.service';
 import { AppException } from '../common/errors/app.exception';
+import { localDay } from '../common/time/local-day';
 import { type Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import {
@@ -23,6 +29,7 @@ import {
 } from './engine/candidate-engine';
 
 type GenerateRequest = z.output<typeof generateOutfitRequestSchema>;
+type OutfitsQuery = z.output<typeof outfitsQuerySchema>;
 
 const DAY_MS = 86_400_000;
 const WEAR_WINDOW_DAYS = 30;
@@ -54,6 +61,9 @@ type OutfitPieces = Prisma.OutfitGetPayload<{ select: typeof PIECES_SELECT }>;
 
 const OUTFIT_INCLUDE = {
   items: { orderBy: { position: 'asc' }, include: { clothingItem: true } },
+  // Outfits are only ever read by their owner, so these are the owner's rows.
+  feedback: { select: { rating: true, comment: true }, take: 1 },
+  wearHistory: { select: { wornAt: true }, orderBy: { wornAt: 'desc' }, take: 1 },
 } satisfies Prisma.OutfitInclude;
 type OutfitRow = Prisma.OutfitGetPayload<{ include: typeof OUTFIT_INCLUDE }>;
 
@@ -73,7 +83,10 @@ export class OutfitsService {
       await Promise.all([
         this.prisma.clothingItem.findMany({ where: { userId, archivedAt: null } }),
         this.prisma.stylePreference.findUnique({ where: { userId } }),
-        this.prisma.profile.findUnique({ where: { userId }, select: { locale: true } }),
+        this.prisma.profile.findUnique({
+          where: { userId },
+          select: { locale: true, timezone: true },
+        }),
         this.prisma.wearHistory.findMany({
           where: { userId, wornAt: { gte: new Date(now - WEAR_WINDOW_DAYS * DAY_MS) } },
           select: {
@@ -182,7 +195,7 @@ export class OutfitsService {
     );
     const chosen = result.candidates[choice.candidateIndex]!;
 
-    const outfit = await this.prisma.outfit.create({
+    const created = await this.prisma.outfit.create({
       data: {
         userId,
         name: choice.name,
@@ -199,23 +212,125 @@ export class OutfitsService {
             .map(({ item }, position) => ({ clothingItemId: item.id, position })),
         },
       },
+      // Read back outside the nested-create transaction: Prisma loads included
+      // relations in parallel, which pg forbids on a single transaction client.
+      select: { id: true },
+    });
+    const outfit = await this.prisma.outfit.findUniqueOrThrow({
+      where: { id: created.id },
       include: OUTFIT_INCLUDE,
     });
 
     return {
-      outfit: await this.toDto(outfit),
+      outfit: await this.toDto(outfit, profile?.timezone ?? 'UTC'),
       provider: this.provider.name,
       candidateCount: result.candidates.length,
     };
   }
 
   async get(userId: string, id: string): Promise<Outfit> {
-    const outfit = await this.prisma.outfit.findFirst({
-      where: { id, userId },
-      include: OUTFIT_INCLUDE,
-    });
+    const [outfit, timezone] = await Promise.all([
+      this.prisma.outfit.findFirst({ where: { id, userId }, include: OUTFIT_INCLUDE }),
+      this.timezoneOf(userId),
+    ]);
     if (!outfit) throw new AppException('NOT_FOUND', 'Outfit not found');
-    return this.toDto(outfit);
+    return this.toDto(outfit, timezone);
+  }
+
+  /** The user's outfits, newest first; `saved=true` lists the looks they kept. */
+  async list(userId: string, query: OutfitsQuery): Promise<OutfitPage> {
+    const [rows, timezone] = await Promise.all([
+      this.prisma.outfit.findMany({
+        where: { userId, ...(query.saved !== undefined ? { isSaved: query.saved } : {}) },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        take: query.limit + 1,
+        ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}),
+        include: OUTFIT_INCLUDE,
+      }),
+      this.timezoneOf(userId),
+    ]);
+    const page = rows.slice(0, query.limit);
+    return {
+      items: await Promise.all(page.map((row) => this.toDto(row, timezone))),
+      nextCursor: rows.length > query.limit ? (page.at(-1)?.id ?? null) : null,
+    };
+  }
+
+  async update(userId: string, id: string, input: UpdateOutfitInput): Promise<Outfit> {
+    await this.assertOwned(userId, id);
+    await this.prisma.outfit.update({ where: { id }, data: { isSaved: input.isSaved } });
+    return this.get(userId, id);
+  }
+
+  /**
+   * "Wear today": records one wear per local day (tapping twice does not count
+   * twice). Wear history feeds the engine's recency penalty, so these pieces
+   * step back in the next suggestions.
+   */
+  async wear(userId: string, id: string): Promise<Outfit> {
+    await this.assertOwned(userId, id);
+    const now = new Date();
+    if ((await this.wearsToday(userId, id, now)).length === 0) {
+      await this.prisma.wearHistory.create({ data: { userId, outfitId: id, wornAt: now } });
+    }
+    return this.get(userId, id);
+  }
+
+  /** Undo today's wear (a mis-tap); earlier days stay in the history. */
+  async unwear(userId: string, id: string): Promise<Outfit> {
+    await this.assertOwned(userId, id);
+    const today = await this.wearsToday(userId, id, new Date());
+    if (today.length) {
+      await this.prisma.wearHistory.deleteMany({
+        where: { userId, id: { in: today.map((wear) => wear.id) } },
+      });
+    }
+    return this.get(userId, id);
+  }
+
+  /** "Love it" / "Not for me": one rating per look, changeable. */
+  async rate(userId: string, id: string, input: OutfitFeedbackInput): Promise<Outfit> {
+    await this.assertOwned(userId, id);
+    const comment = input.rating === 'DISLIKE' ? (input.reason ?? null) : null;
+    await this.prisma.outfitFeedback.upsert({
+      where: { outfitId_userId: { outfitId: id, userId } },
+      create: { outfitId: id, userId, rating: input.rating, comment },
+      update: { rating: input.rating, comment },
+    });
+    return this.get(userId, id);
+  }
+
+  async clearRating(userId: string, id: string): Promise<Outfit> {
+    await this.assertOwned(userId, id);
+    await this.prisma.outfitFeedback.deleteMany({ where: { outfitId: id, userId } });
+    return this.get(userId, id);
+  }
+
+  private async assertOwned(userId: string, id: string) {
+    const owned = await this.prisma.outfit.findFirst({
+      where: { id, userId },
+      select: { id: true },
+    });
+    if (!owned) throw new AppException('NOT_FOUND', 'Outfit not found');
+  }
+
+  private async timezoneOf(userId: string) {
+    const profile = await this.prisma.profile.findUnique({
+      where: { userId },
+      select: { timezone: true },
+    });
+    return profile?.timezone ?? 'UTC';
+  }
+
+  private async wearsToday(userId: string, outfitId: string, now: Date) {
+    const timezone = await this.timezoneOf(userId);
+    // A local day spans at most ~26 h of UTC; filter precisely by local date.
+    const recent = await this.prisma.wearHistory.findMany({
+      where: { userId, outfitId, wornAt: { gte: new Date(now.getTime() - 2 * DAY_MS) } },
+      select: { id: true, wornAt: true },
+    });
+    const today = localDay(now, timezone);
+    return recent.filter((wear) => localDay(wear.wornAt, timezone) === today);
   }
 
   /**
@@ -298,8 +413,11 @@ export class OutfitsService {
     }
   }
 
-  private async toDto(outfit: OutfitRow): Promise<Outfit> {
+  private async toDto(outfit: OutfitRow, timezone: string): Promise<Outfit> {
     const constraints = outfitConstraintsSchema.safeParse(outfit.constraints ?? undefined);
+    const feedback = outfit.feedback[0];
+    const lastWornAt = outfit.wearHistory[0]?.wornAt ?? null;
+    const reason = dislikeReasonSchema.safeParse(feedback?.comment);
     return {
       id: outfit.id,
       name: outfit.name,
@@ -311,6 +429,12 @@ export class OutfitsService {
       constraints:
         outfit.constraints && constraints.success ? (constraints.data as OutfitConstraints) : null,
       items: await Promise.all(outfit.items.map((entry) => this.closet.toDto(entry.clothingItem))),
+      feedback: feedback
+        ? { rating: feedback.rating, reason: reason.success ? reason.data : null }
+        : null,
+      wornToday:
+        lastWornAt !== null && localDay(lastWornAt, timezone) === localDay(new Date(), timezone),
+      lastWornAt: lastWornAt?.toISOString() ?? null,
       createdAt: outfit.createdAt.toISOString(),
     };
   }

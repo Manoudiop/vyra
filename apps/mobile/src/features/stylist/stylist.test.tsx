@@ -17,7 +17,16 @@ jest.mock('@/features/closet/closet-api', () => ({
 }));
 jest.mock('./stylist-api', () => ({
   ...jest.requireActual('./stylist-api'),
-  stylistApi: { generate: jest.fn(), getOutfit: jest.fn() },
+  stylistApi: {
+    generate: jest.fn(),
+    getOutfit: jest.fn(),
+    listSaved: jest.fn(),
+    setSaved: jest.fn(),
+    wear: jest.fn(),
+    unwear: jest.fn(),
+    rate: jest.fn(),
+    clearRating: jest.fn(),
+  },
 }));
 
 jest.setTimeout(60_000);
@@ -57,6 +66,9 @@ const outfit = (id: string, name: string, items: ClothingItem[]): Outfit => ({
   isSaved: false,
   constraints: { avoidColors: [], avoidKinds: ['jeans'], requiredItemId: BLAZER.id },
   items,
+  feedback: null,
+  wornToday: false,
+  lastWornAt: null,
   createdAt: '2026-10-18T09:00:00.000Z',
 });
 
@@ -189,5 +201,139 @@ describe('AI stylist', () => {
       excludeOutfitIds: [FIRST.id],
     });
     expect(await screen.findByText('Réunion en bleu', {}, { timeout: 5000 })).toBeTruthy();
+  });
+});
+
+/** A promise the test settles by hand, to observe the screen while a request is in flight. */
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (error: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+}
+
+describe('Outfit actions', () => {
+  const open = async (outfit: Outfit = FIRST) => {
+    stylist.getOutfit.mockResolvedValue(outfit);
+    await renderRouter('./app', { initialUrl: `/outfit/${outfit.id}` });
+    expect(await screen.findByText(outfit.name)).toBeTruthy();
+  };
+
+  it('saves a look before the API answers, and keeps it saved', async () => {
+    const request = deferred<Outfit>();
+    stylist.setSaved.mockReturnValue(request.promise);
+    await open();
+    expect(screen.getByTestId('outfit-save')).not.toBeSelected();
+    await fireEvent.press(screen.getByTestId('outfit-save'));
+    // Optimistic: selected while the request is still in flight.
+    await waitFor(() => expect(screen.getByTestId('outfit-save')).toBeSelected());
+    expect(screen.getByLabelText('Retirer des looks enregistrés')).toBeTruthy();
+    expect(stylist.setSaved).toHaveBeenCalledWith(FIRST.id, true);
+
+    request.resolve({ ...FIRST, isSaved: true });
+    await waitFor(() => expect(stylist.setSaved).toHaveBeenCalledTimes(1));
+    expect(screen.getByTestId('outfit-save')).toBeSelected();
+  });
+
+  it('rolls an optimistic save back when the API refuses', async () => {
+    const request = deferred<Outfit>();
+    stylist.setSaved.mockReturnValue(request.promise);
+    await open();
+    await fireEvent.press(screen.getByTestId('outfit-save'));
+    await waitFor(() => expect(screen.getByTestId('outfit-save')).toBeSelected());
+
+    request.reject(new ApiError('NETWORK_ERROR', 'offline', 0));
+    await waitFor(() => expect(screen.getByTestId('outfit-save')).not.toBeSelected());
+    expect(
+      await screen.findByText('Impossible de joindre VYRA. Vérifie ta connexion.'),
+    ).toBeTruthy();
+  });
+
+  it('wears the look today, then undoes it', async () => {
+    stylist.wear.mockResolvedValue({
+      ...FIRST,
+      wornToday: true,
+      lastWornAt: '2026-10-18T10:00:00.000Z',
+    });
+    stylist.unwear.mockResolvedValue(FIRST);
+    await open();
+    await fireEvent.press(screen.getByTestId('outfit-wear'));
+    expect(await screen.findByTestId('outfit-worn')).toHaveTextContent(/Porté aujourd’hui/);
+    expect(stylist.wear).toHaveBeenCalledWith(FIRST.id);
+
+    await fireEvent.press(screen.getByTestId('outfit-unwear'));
+    expect(await screen.findByTestId('outfit-wear')).toBeTruthy();
+    expect(stylist.unwear).toHaveBeenCalledWith(FIRST.id);
+  });
+
+  it('shows when a look was last worn', async () => {
+    await open({ ...FIRST, lastWornAt: '2026-10-12T10:00:00.000Z' });
+    expect(screen.getByTestId('outfit-last-worn')).toHaveTextContent(/12 octobre/);
+  });
+
+  it('"love it" can be undone by tapping it again', async () => {
+    stylist.rate.mockResolvedValue({ ...FIRST, feedback: { rating: 'LOVE', reason: null } });
+    stylist.clearRating.mockResolvedValue(FIRST);
+    await open();
+    await fireEvent.press(screen.getByTestId('outfit-love'));
+    await waitFor(() => expect(screen.getByTestId('outfit-love')).toBeSelected());
+    expect(screen.getByTestId('outfit-loved-hint')).toBeTruthy();
+    expect(stylist.rate).toHaveBeenCalledWith(FIRST.id, { rating: 'LOVE' });
+
+    await fireEvent.press(screen.getByTestId('outfit-love'));
+    await waitFor(() => expect(stylist.clearRating).toHaveBeenCalledWith(FIRST.id));
+    await waitFor(() => expect(screen.getByTestId('outfit-love')).not.toBeSelected());
+  });
+
+  it('"not for me" offers an optional reason', async () => {
+    stylist.rate
+      .mockResolvedValueOnce({ ...FIRST, feedback: { rating: 'DISLIKE', reason: null } })
+      .mockResolvedValueOnce({ ...FIRST, feedback: { rating: 'DISLIKE', reason: 'COLORS' } });
+    await open();
+    expect(screen.queryByTestId('reason-COLORS')).toBeNull();
+    await fireEvent.press(screen.getByTestId('outfit-dislike'));
+    await waitFor(() => expect(screen.getByTestId('outfit-dislike')).toBeSelected());
+    expect(screen.getByTestId('outfit-disliked-hint')).toBeTruthy();
+
+    await fireEvent.press(screen.getByTestId('reason-COLORS'));
+    await waitFor(() => expect(screen.getByTestId('reason-COLORS')).toBeSelected());
+    await waitFor(() =>
+      expect(stylist.rate).toHaveBeenLastCalledWith(FIRST.id, {
+        rating: 'DISLIKE',
+        reason: 'COLORS',
+      }),
+    );
+    expect(stylist.rate).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('Saved looks', () => {
+  it('lists saved looks and opens one', async () => {
+    stylist.listSaved.mockResolvedValue({
+      items: [{ ...FIRST, isSaved: true }],
+      nextCursor: null,
+    });
+    stylist.getOutfit.mockResolvedValue({ ...FIRST, isSaved: true });
+    await renderRouter('./app', { initialUrl: '/saved-outfits' });
+    await fireEvent.press(await screen.findByTestId(`saved-outfit-${FIRST.id}`));
+    expect(await screen.findByText('Bureau impeccable')).toBeTruthy();
+    expect(screen.getByTestId('outfit-save')).toBeSelected();
+  });
+
+  it('guides to the stylist when nothing is saved', async () => {
+    stylist.listSaved.mockResolvedValue({ items: [], nextCursor: null });
+    await renderRouter('./app', { initialUrl: '/saved-outfits' });
+    expect(await screen.findByTestId('saved-empty')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Créer un look' })).toBeTruthy();
+  });
+
+  it('is reachable from the profile', async () => {
+    stylist.listSaved.mockResolvedValue({ items: [], nextCursor: null });
+    await renderRouter('./app', { initialUrl: '/profile' });
+    await fireEvent.press(await screen.findByTestId('profile-saved-outfits'));
+    expect(await screen.findByTestId('saved-outfits-screen')).toBeTruthy();
   });
 });

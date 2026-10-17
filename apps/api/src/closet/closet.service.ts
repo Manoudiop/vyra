@@ -17,7 +17,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { StorageService, userKeyPrefix } from '../storage/storage.service';
 
 type ClosetQueryParsed = z.output<typeof closetQuerySchema>;
-type ItemRow = Prisma.ClothingItemGetPayload<object>;
+export type ItemRow = Prisma.ClothingItemGetPayload<object>;
 
 const notFound = () => new AppException('NOT_FOUND', 'Item not found');
 
@@ -197,7 +197,8 @@ export class ClosetService {
       : 'FREE';
   }
 
-  private async toDto(row: ItemRow): Promise<ClothingItem> {
+  /** Public so other modules (outfits) present items exactly like the closet does. */
+  async toDto(row: ItemRow): Promise<ClothingItem> {
     const [imageUrl, thumbnailUrl] = await Promise.all([
       this.storage.getSignedUrl(row.imageKey),
       this.storage.getSignedUrl(row.thumbnailKey ?? row.imageKey),

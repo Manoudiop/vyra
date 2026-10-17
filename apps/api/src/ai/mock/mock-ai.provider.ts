@@ -11,12 +11,13 @@ import {
 } from '../ai.provider';
 import { analyzeFeatures } from './clothing-classifier';
 import { extractFeatures } from './garment-vision';
+import { explainOutfit, outfitName } from './stylist-copy';
 
 /**
  * Offline provider used in development and tests: deterministic, no network,
  * no API key. Clothing analysis really looks at the photo (silhouette + color
- * segmentation); outfit generation and style analysis are added in the phases
- * that introduce their engines (9 and 12).
+ * segmentation); outfits are chosen among engine-ranked candidates and
+ * explained from facts about them. Style analysis arrives in phase 12.
  */
 export class MockAIProvider extends AIProvider {
   readonly name = 'mock';
@@ -25,12 +26,27 @@ export class MockAIProvider extends AIProvider {
     return analyzeFeatures(await extractFeatures(image), locale);
   }
 
-  generateOutfit(_input: GenerateOutfitInput): Promise<GeneratedOutfit> {
-    return Promise.reject(notYetAvailable('generateOutfit'));
+  /** The engine already ranked the candidates: the mock takes the best one and explains it. */
+  async generateOutfit(input: GenerateOutfitInput): Promise<GeneratedOutfit> {
+    const best = input.candidates[0];
+    if (!best) throw new AppException('AI_ERROR', 'No candidate to choose from');
+    return {
+      candidateIndex: 0,
+      name: outfitName(best.items, input.occasion, input.locale),
+      reason: explainOutfit({
+        items: best.items,
+        occasion: input.occasion,
+        style: input.style,
+        weather: input.weather,
+        recentlyWornIds: best.recentlyWornIds,
+        preferredColors: input.preferences.colors,
+        locale: input.locale,
+      }),
+    };
   }
 
-  explainOutfit(_input: ExplainOutfitInput): Promise<string> {
-    return Promise.reject(notYetAvailable('explainOutfit'));
+  async explainOutfit(input: ExplainOutfitInput): Promise<string> {
+    return explainOutfit(input);
   }
 
   analyzeStyle(_input: AnalyzeStyleInput): Promise<StyleAnalysis> {

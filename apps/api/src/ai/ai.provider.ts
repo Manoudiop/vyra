@@ -55,6 +55,8 @@ export interface OutfitCandidate {
   items: AIClothingItem[];
   /** Engine score in [0, 1] (occasion fit, preferences, recency, weather). */
   score: number;
+  /** Items of this candidate worn in the last 7 days (for the explanation). */
+  recentlyWornIds: string[];
 }
 
 export interface GenerateOutfitInput {

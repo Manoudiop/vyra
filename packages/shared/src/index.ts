@@ -5,5 +5,6 @@ export * from './closet';
 export * from './errors';
 export * from './health';
 export * from './images';
+export * from './outfits';
 export * from './plans';
 export * from './profile';

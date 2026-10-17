@@ -7,17 +7,18 @@ Plan d'implémentation et décisions : [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEM
 
 ## Statut
 
-| Phase  | Contenu                                                                | État    |
-| ------ | ---------------------------------------------------------------------- | ------- |
-| 1      | Monorepo, configuration, squelettes API / mobile / admin               | ✅      |
-| 2      | PostgreSQL, schéma Prisma, migrations, seed de démo                    | ✅      |
-| 3      | Authentification API (JWT, refresh rotatif, reset par code, guards)    | ✅      |
-| 4      | Design system, navigation 5 onglets, écrans d'auth, routes protégées   | ✅      |
-| 5      | Onboarding en 8 étapes, profil et préférences de style éditables       | ✅      |
-| 6      | Dressing : grille, recherche, filtres, détail, édition, suppression    | ✅      |
-| 7      | Upload photo sécurisé, stockage local/S3 (MinIO), écran d'ajout        | ✅      |
-| 8      | Analyse IA des vêtements (provider mock) et pré-remplissage de l'ajout | ✅      |
-| 9 → 18 | Styliste IA, détail des looks, calendrier, abonnements…                | à venir |
+| Phase   | Contenu                                                                | État    |
+| ------- | ---------------------------------------------------------------------- | ------- |
+| 1       | Monorepo, configuration, squelettes API / mobile / admin               | ✅      |
+| 2       | PostgreSQL, schéma Prisma, migrations, seed de démo                    | ✅      |
+| 3       | Authentification API (JWT, refresh rotatif, reset par code, guards)    | ✅      |
+| 4       | Design system, navigation 5 onglets, écrans d'auth, routes protégées   | ✅      |
+| 5       | Onboarding en 8 étapes, profil et préférences de style éditables       | ✅      |
+| 6       | Dressing : grille, recherche, filtres, détail, édition, suppression    | ✅      |
+| 7       | Upload photo sécurisé, stockage local/S3 (MinIO), écran d'ajout        | ✅      |
+| 8       | Analyse IA des vêtements (provider mock) et pré-remplissage de l'ajout | ✅      |
+| 9       | Styliste IA : moteur de candidats, génération, écran look              | ✅      |
+| 10 → 18 | Détail look (enregistrer, porter, avis), calendrier, abonnements…      | à venir |
 
 ## Structure
 
@@ -86,6 +87,7 @@ Lancer une seule app : `pnpm --filter @vyra/api dev`, `pnpm --filter @vyra/mobil
 - **i18n** : français par défaut, anglais si l'appareil est en anglais (`src/i18n`, clés typées : `en.ts` doit refléter `fr.ts`).
 - **Onboarding** (`app/(app)/onboarding.tsx`) : 8 étapes (accueil, prénom, vestiaire, styles, couleurs, occasions, ville, récapitulatif), obligatoire tant que le profil n'est pas complété — garde `Stack.Protected` sur `user.onboardingCompleted`. Brouillon en mémoire (Zustand) conservé en revenant en arrière, réinitialisé à la déconnexion. Les réponses partent en une seule requête à la fin. Une ville choisie dans les suggestions renseigne aussi le pays et le fuseau horaire (sinon : fuseau de l'appareil).
 - **Dressing** (onglet Dressing) : grille 2 colonnes (FlashList), recherche avec délai (300 ms), filtres par catégorie avec compteurs, favoris (mise à jour optimiste avec retour arrière en cas d'erreur), pagination infinie, tirer-pour-rafraîchir, squelettes et états vides. Détail (`app/(app)/closet/[id]`) avec statistiques d'usage, édition en modal, retrait avec confirmation. Ajout d'une pièce (`app/(app)/closet/add.tsx`) : appareil photo ou galerie (cadrage 4:5), redimensionnement JPEG ≤ 1600 px sur le téléphone avant envoi, animation pendant l'envoi, formulaire avec la couleur pré-sélectionnée d'après la photo ; une photo envoyée mais non enregistrée est supprimée en quittant l'écran. Après l'envoi, l'analyse IA pré-remplit nom, catégorie, type, couleur, style et saison ; les champs à faible confiance sont signalés « À vérifier » et tout reste modifiable. Si l'analyse échoue, le formulaire reste utilisable à la main. Les suggestions et les corrections de l'utilisateur sont conservées dans `metadata` de la pièce.
+- **Styliste IA** (onglet central) : occasion (10 choix), style (pré-sélectionné selon l'occasion, modifiable), contraintes facultatives (éviter le noir / le jean, pas de talons / de baskets) et « utiliser une pièce précise » (miniatures du dressing). La génération affiche un moment animé (≥ 2,2 s) avec les étapes réelles, puis l'écran du look (`app/(app)/outfit/[id].tsx`) : vraies photos des pièces, explication, « Un autre look » (les looks déjà vus dans la série sont exclus). Dressing incomplet → message clair (« il manque des chaussures ») avec bouton d'ajout ; contraintes impossibles → message dédié.
 - **Édition du profil** : Profil → « Préférences de style » (`app/(app)/edit-profile.tsx`), mêmes sélecteurs que l'onboarding (`src/features/profile/pickers.tsx`).
 - **Formulaires** : React Hook Form + Zod, messages traduits ; l'API revalide tout avec `@vyra/shared`.
 - `pnpm --filter @vyra/mobile typecheck` génère d'abord les types des routes typées (`scripts/typegen.js`) — pas besoin de lancer Metro.
@@ -131,6 +133,7 @@ Toutes passent par une interface avec une implémentation mock sélectionnée pa
 - Préfixe `/api`, documentation Swagger sur `/api/docs` (désactivée en production).
 - **Profil** (`/api/profile`) : `GET` (profil + préférences déclarées), `PUT /onboarding` (toutes les réponses, atomique, idempotent : conserve la date de première complétion), `PATCH` (n'importe quel sous-ensemble). Vocabulaire des couleurs partagé : `STYLE_COLORS` dans `@vyra/shared` (réutilisé par le dressing et le moteur de looks).
 - **Dressing** (`/api/closet`) : `GET` (recherche nom/type/couleur, `category`, `favorite`, pagination par curseur), `GET /summary` (compteurs par catégorie + limite du plan), `GET /:id` (avec statistiques : looks, nombre de ports, dernier port), `POST` (les clés d'image doivent être sous `users/<id>/` ; limite FREE de 30 pièces → `LIMIT_REACHED`), `PATCH /:id`, `DELETE /:id` (archivage : les looks passés gardent la pièce). Une pièce d'un autre compte répond `404`, comme une pièce inexistante.
+- **Styliste** (`POST /api/ai/generate-outfit`, 20/min ; `GET /api/outfits/:id`) : le **moteur de candidats** (`apps/api/src/outfits/engine`, fonctions pures testées) combine uniquement les vraies pièces de l'utilisateur — haut + bas ou pièce unique (robe, boubou, caftan…) + chaussures, veste et accessoire facultatifs — et les note : affinité style/occasion, couleurs et styles préférés, favoris, pièces des looks aimés, **pénalité de récence** (décroissance sur ~1 semaine), harmonie des couleurs (neutres + un accent, conflits pénalisés), contraintes, combinaisons récentes, et **pièces principales des looks rejetés ou déjà vus** (un même look avec une autre veste n'est pas un nouveau look). L'`AIProvider` choisit parmi les 5 meilleurs candidats et rédige nom + explication ; son choix est revalidé, et en cas d'échec l'API retombe sur le meilleur candidat avec une explication modèle. Erreurs `422` explicites : `INCOMPLETE_CLOSET` (pièces manquantes), `NO_MATCH`, `REQUIRED_ITEM_UNAVAILABLE`. Aucune image générée : seules les photos du dressing sont utilisées.
 - **IA** (`POST /api/ai/analyze-clothing`, `{ imageKey }`, 20/min) : renvoie une analyse (nom dans la langue du profil, catégorie, type, couleur du vocabulaire + teinte mesurée, style, saison) avec une confiance par champ. Le code métier ne dépend que de la classe abstraite `AIProvider` (`analyzeClothing`, `generateOutfit`, `explainOutfit`, `analyzeStyle`) ; l'implémentation est choisie par `AI_PROVIDER`. Seul `mock` existe (décision produit) : il **analyse réellement la photo** (segmentation du vêtement sur fond uni, mesure de la silhouette — manches, jambes, ourlet, anse… — et des couleurs en espace CIELAB, détection des motifs type wax), sans réseau ni clé. La sortie de tout provider est revalidée par Zod ; une erreur devient `AI_ERROR` sans détail interne. `generateOutfit`/`explainOutfit` arrivent en phase 9, `analyzeStyle` en phase 12.
 - **Upload** (`POST /api/storage/images`, multipart `file`, 30/min) : 10 Mo max ; format détecté **d'après le contenu** (JPEG, PNG, WebP, HEIF — jamais le nom ni le MIME déclaré : SVG, GIF, fichiers tronqués refusés) ; garde-fou anti « image bombe » (40 Mpx) ; rotation EXIF appliquée puis **toutes les métadonnées supprimées (GPS compris)** ; ré-encodage WebP ≤ 1600×2000 + miniature 480×600 ; couleur dominante calculée sur la zone centrale (le vêtement, pas le fond). `DELETE /api/storage/images` supprime une photo non utilisée.
 - **Images** : l'API ne stocke que des clés et renvoie des URLs signées valables ~1 h (arrondies à l'heure pour que l'app puisse les mettre en cache). En dev, `GET /api/storage/files/...?exp&sig` sert les fichiers locaux après vérification HMAC.

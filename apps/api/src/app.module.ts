@@ -10,6 +10,7 @@ import { RolesGuard } from './auth/guards/roles.guard';
 import { AppConfigModule } from './config/app-config.module';
 import { HealthModule } from './health/health.module';
 import { MailModule } from './mail/mail.module';
+import { OutfitsModule } from './outfits/outfits.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { ProfilesModule } from './profiles/profiles.module';
 import { StorageModule } from './storage/storage.module';
@@ -29,6 +30,7 @@ import { UsersModule } from './users/users.module';
     StorageModule,
     ClosetModule,
     AiModule,
+    OutfitsModule,
   ],
   providers: [
     { provide: APP_PIPE, useClass: ZodValidationPipe },

@@ -7,6 +7,7 @@ import {
   Palette,
   Settings,
 } from 'lucide-react-native';
+import { router } from 'expo-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, Platform, StyleSheet, View } from 'react-native';
@@ -34,13 +35,26 @@ function confirm(message: string, confirmLabel: string, cancelLabel: string): Pr
   );
 }
 
-function Row({ icon: Icon, label }: { icon: LucideIcon; label: string }) {
-  // Destinations arrive in later phases (12, 15, 18); rows are visible but inert.
+function Row({
+  icon: Icon,
+  label,
+  onPress,
+  testID,
+}: {
+  icon: LucideIcon;
+  label: string;
+  /** Rows without a destination yet (phases 15, 18) are visible but inert. */
+  onPress?: () => void;
+  testID?: string;
+}) {
   return (
     <PressableScale
+      testID={testID}
       accessibilityRole="button"
       accessibilityLabel={label}
-      disabled
+      disabled={!onPress}
+      onPress={onPress}
+      pressedScale={0.99}
       style={styles.row}
     >
       <View style={styles.rowIcon}>
@@ -89,7 +103,12 @@ export default function ProfileScreen() {
       </Card>
 
       <Card padded={false} style={styles.list}>
-        <Row icon={Palette} label={t('profile.stylePreferences')} />
+        <Row
+          testID="profile-style-preferences"
+          icon={Palette}
+          label={t('profile.stylePreferences')}
+          onPress={() => router.push('/edit-profile')}
+        />
         <View style={styles.divider} />
         <Row icon={Crown} label={t('profile.subscription')} />
         <View style={styles.divider} />

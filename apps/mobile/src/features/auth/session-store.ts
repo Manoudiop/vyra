@@ -1,6 +1,7 @@
 import { type AuthSession, type AuthTokens, type AuthUser } from '@vyra/shared';
 import { create } from 'zustand';
 import { ApiError } from '@/lib/api-client';
+import { useOnboarding } from '@/features/onboarding/onboarding-store';
 import { queryClient } from '@/lib/query-client';
 import { authApi } from './auth-api';
 import { tokenStorage } from './token-storage';
@@ -48,6 +49,8 @@ export const useSession = create<SessionState>()((set, get) => {
   const clearLocalSession = async () => {
     await tokenStorage.clear();
     queryClient.clear();
+    // Never leak one account's onboarding answers into the next sign-in.
+    useOnboarding.getState().reset();
     set({ status: 'signedOut', user: null, accessToken: null, accessTokenExpiresAt: null });
   };
 

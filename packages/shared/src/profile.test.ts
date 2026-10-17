@@ -1,0 +1,61 @@
+import { describe, expect, it } from 'vitest';
+import { completeOnboardingSchema, STYLE_COLOR_NAMES, updateProfileSchema } from './profile';
+
+const valid = {
+  firstName: ' Amina ',
+  genderPreference: 'WOMEN',
+  preferredStyles: ['ELEGANT', 'TRADITIONAL'],
+  preferredColors: ['beige', 'gold'],
+  preferredOccasions: ['WORK', 'WEDDING'],
+  city: 'Dakar',
+  countryCode: 'sn',
+  timezone: 'Africa/Dakar',
+};
+
+describe('onboarding schema', () => {
+  it('accepts a complete onboarding and normalizes values', () => {
+    const parsed = completeOnboardingSchema.parse(valid);
+    expect(parsed.firstName).toBe('Amina');
+    expect(parsed.countryCode).toBe('SN');
+  });
+
+  it('enforces selection limits and uniqueness', () => {
+    expect(completeOnboardingSchema.safeParse({ ...valid, preferredStyles: [] }).success).toBe(
+      false,
+    );
+    expect(
+      completeOnboardingSchema.safeParse({
+        ...valid,
+        preferredStyles: ['CASUAL', 'ELEGANT', 'FORMAL', 'SPORT', 'STREETWEAR'],
+      }).success,
+    ).toBe(false);
+    expect(
+      completeOnboardingSchema.safeParse({ ...valid, preferredColors: ['gold', 'gold'] }).success,
+    ).toBe(false);
+  });
+
+  it('rejects unknown colors, "Surprise me" as a preference and bad time zones', () => {
+    expect(
+      completeOnboardingSchema.safeParse({ ...valid, preferredColors: ['plaid'] }).success,
+    ).toBe(false);
+    expect(
+      completeOnboardingSchema.safeParse({ ...valid, preferredOccasions: ['SURPRISE'] }).success,
+    ).toBe(false);
+    expect(completeOnboardingSchema.safeParse({ ...valid, timezone: 'Mars/Olympus' }).success).toBe(
+      false,
+    );
+  });
+
+  it('exposes a stable color vocabulary', () => {
+    expect(STYLE_COLOR_NAMES).toContain('terracotta');
+    expect(STYLE_COLOR_NAMES.every((name) => name === name.toLowerCase())).toBe(true);
+  });
+});
+
+describe('profile update schema', () => {
+  it('accepts partial updates but not empty ones', () => {
+    expect(updateProfileSchema.safeParse({ city: 'Abidjan' }).success).toBe(true);
+    expect(updateProfileSchema.safeParse({ lastName: null }).success).toBe(true);
+    expect(updateProfileSchema.safeParse({}).success).toBe(false);
+  });
+});

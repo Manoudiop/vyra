@@ -48,3 +48,20 @@ describe('HTTP pipeline (e2e)', () => {
     expect(res.body.paths).toHaveProperty('/api/health');
   });
 });
+
+describe('Database readiness (e2e)', () => {
+  let app: INestApplication;
+
+  beforeAll(async () => {
+    app = await createTestApp();
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  it('GET /api/health/ready reaches the migrated test database', async () => {
+    const res = await request(app.getHttpServer()).get('/api/health/ready').expect(200);
+    expect(res.body).toEqual({ status: 'ready', checks: { database: 'up' } });
+  });
+});

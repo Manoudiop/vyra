@@ -1,0 +1,384 @@
+// VYRA data model. Conventions:
+// - UUIDv7 primary keys (time-ordered, index-friendly).
+// - Every user-owned table carries `userId` and cascades on user deletion.
+// - Timestamps are timestamptz with millisecond precision.
+// - Image *keys* are stored, never URLs: URLs are signed at read time by StorageService.
+// - Enum values mirror packages/shared (checked by prisma-enums.spec.ts).
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum GenderPreference {
+  WOMEN
+  MEN
+  UNISEX
+}
+
+enum ClothingCategory {
+  TOPS
+  BOTTOMS
+  SHOES
+  OUTERWEAR
+  ACCESSORIES
+  TRADITIONAL
+  OTHER
+}
+
+enum Season {
+  SPRING
+  SUMMER
+  AUTUMN
+  WINTER
+  ALL_SEASON
+}
+
+enum Style {
+  CASUAL
+  SMART_CASUAL
+  ELEGANT
+  STREETWEAR
+  FORMAL
+  SPORT
+  TRADITIONAL
+}
+
+enum Occasion {
+  WORK
+  DATE
+  DINNER
+  PARTY
+  WEDDING
+  TRAVEL
+  CASUAL
+  WORKOUT
+  TRADITIONAL
+  SURPRISE
+}
+
+enum OutfitSource {
+  AI
+  MANUAL
+}
+
+enum FeedbackRating {
+  LOVE
+  DISLIKE
+}
+
+enum Plan {
+  FREE
+  PRO
+  PREMIUM
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  TRIALING
+  PAST_DUE
+  CANCELED
+  EXPIRED
+}
+
+enum UsageMetric {
+  OUTFIT_GENERATION
+  CLOTHING_ANALYSIS
+}
+
+// ---------------------------------------------------------------------------
+// Identity & auth
+// ---------------------------------------------------------------------------
+
+model User {
+  id           String   @id @default(uuid(7)) @db.Uuid
+  /// Always stored lower-cased and trimmed.
+  email        String   @unique
+  passwordHash String
+  firstName    String
+  lastName     String?
+  avatarKey    String?
+  role         Role     @default(USER)
+  createdAt    DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime @updatedAt @db.Timestamptz(3)
+
+  profile             Profile?
+  stylePreference     StylePreference?
+  subscription        Subscription?
+  refreshTokens       RefreshToken[]
+  passwordResetTokens PasswordResetToken[]
+  clothingItems       ClothingItem[]
+  outfits             Outfit[]
+  outfitFeedback      OutfitFeedback[]
+  wearHistory         WearHistory[]
+  calendarEvents      CalendarEvent[]
+  usage               Usage[]
+  analyticsEvents     AnalyticsEvent[]
+}
+
+/// Opaque refresh tokens, stored hashed. Rotated on every use; reusing a
+/// rotated token revokes its whole family (stolen-token detection).
+model RefreshToken {
+  id           String    @id @default(uuid(7)) @db.Uuid
+  userId       String    @db.Uuid
+  tokenHash    String    @unique
+  familyId     String    @db.Uuid
+  expiresAt    DateTime  @db.Timestamptz(3)
+  revokedAt    DateTime? @db.Timestamptz(3)
+  replacedById String?   @db.Uuid
+  userAgent    String?
+  createdAt    DateTime  @default(now()) @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([familyId])
+}
+
+/// 6-digit password reset codes, stored hashed, single use, short-lived.
+model PasswordResetToken {
+  id        String    @id @default(uuid(7)) @db.Uuid
+  userId    String    @db.Uuid
+  codeHash  String
+  attempts  Int       @default(0)
+  expiresAt DateTime  @db.Timestamptz(3)
+  usedAt    DateTime? @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Profile & style
+// ---------------------------------------------------------------------------
+
+model Profile {
+  userId                String            @id @db.Uuid
+  genderPreference      GenderPreference?
+  city                  String?
+  countryCode           String?           @db.Char(2)
+  /// IANA timezone, used for "today", calendar days and weekly usage windows.
+  timezone              String            @default("UTC")
+  locale                String            @default("fr")
+  notificationsEnabled  Boolean           @default(true)
+  onboardingCompletedAt DateTime?         @db.Timestamptz(3)
+  createdAt             DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt             DateTime          @updatedAt @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+/// Declared preferences (onboarding) enriched by learned signals (feedback,
+/// wear history). `metadata` holds the learned weights and recompute info.
+model StylePreference {
+  id                 String     @id @default(uuid(7)) @db.Uuid
+  userId             String     @unique @db.Uuid
+  preferredColors    String[]
+  preferredStyles    Style[]
+  preferredOccasions Occasion[]
+  /// ClothingItem ids the user does not want suggested.
+  dislikedItems      String[]   @db.Uuid
+  metadata           Json       @default("{}")
+  lastComputedAt     DateTime?  @db.Timestamptz(3)
+  createdAt          DateTime   @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime   @updatedAt @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ---------------------------------------------------------------------------
+// Closet & outfits
+// ---------------------------------------------------------------------------
+
+model ClothingItem {
+  id           String           @id @default(uuid(7)) @db.Uuid
+  userId       String           @db.Uuid
+  name         String
+  category     ClothingCategory
+  subcategory  String?
+  /// Human color name in English lowercase (e.g. "navy"), used by the engine.
+  color        String
+  colorHex     String?          @db.Char(7)
+  style        Style?
+  season       Season           @default(ALL_SEASON)
+  imageKey     String
+  thumbnailKey String?
+  isFavorite   Boolean          @default(false)
+  /// AI analysis output, confidence, source dimensions, etc.
+  metadata     Json             @default("{}")
+  /// Soft delete: archived items disappear from the closet but keep outfit history intact.
+  archivedAt   DateTime?        @db.Timestamptz(3)
+  createdAt    DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime         @updatedAt @db.Timestamptz(3)
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  outfitItems OutfitItem[]
+
+  @@index([userId, archivedAt, category])
+  @@index([userId, createdAt])
+}
+
+model Outfit {
+  id              String       @id @default(uuid(7)) @db.Uuid
+  userId          String       @db.Uuid
+  name            String
+  occasion        Occasion
+  style           Style
+  reason          String
+  /// Engine score in [0, 1].
+  score           Float?
+  source          OutfitSource @default(AI)
+  isSaved         Boolean      @default(false)
+  /// Constraints requested at generation time (avoid colors, required item...).
+  constraints     Json?
+  /// Weather at generation time, for explanations and learning.
+  weatherSnapshot Json?
+  createdAt       DateTime     @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime     @updatedAt @db.Timestamptz(3)
+
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items          OutfitItem[]
+  feedback       OutfitFeedback[]
+  wearHistory    WearHistory[]
+  calendarEvents CalendarEvent[]
+
+  @@index([userId, createdAt])
+  @@index([userId, isSaved])
+}
+
+model OutfitItem {
+  outfitId       String @db.Uuid
+  clothingItemId String @db.Uuid
+  /// Display order (top to bottom, then accessories).
+  position       Int    @default(0)
+
+  outfit       Outfit       @relation(fields: [outfitId], references: [id], onDelete: Cascade)
+  // Cascade only matters for user deletion: the app never hard-deletes garments (they are
+  // archived via `archivedAt`), so outfit history keeps its items.
+  clothingItem ClothingItem @relation(fields: [clothingItemId], references: [id], onDelete: Cascade)
+
+  @@id([outfitId, clothingItemId])
+  @@index([clothingItemId])
+}
+
+model OutfitFeedback {
+  id        String         @id @default(uuid(7)) @db.Uuid
+  outfitId  String         @db.Uuid
+  userId    String         @db.Uuid
+  rating    FeedbackRating
+  comment   String?
+  createdAt DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime       @updatedAt @db.Timestamptz(3)
+
+  outfit Outfit @relation(fields: [outfitId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([outfitId, userId])
+  @@index([userId, createdAt])
+}
+
+model WearHistory {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  userId    String   @db.Uuid
+  outfitId  String   @db.Uuid
+  wornAt    DateTime @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  outfit Outfit @relation(fields: [outfitId], references: [id], onDelete: Cascade)
+
+  @@index([userId, wornAt])
+  @@index([outfitId])
+}
+
+/// One planned look per user and calendar day (MVP rule).
+model CalendarEvent {
+  id        String    @id @default(uuid(7)) @db.Uuid
+  userId    String    @db.Uuid
+  outfitId  String    @db.Uuid
+  /// Calendar day in the user's timezone, no time component.
+  date      DateTime  @db.Date
+  occasion  Occasion?
+  notes     String?
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(3)
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  outfit Outfit @relation(fields: [outfitId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@index([outfitId])
+}
+
+// ---------------------------------------------------------------------------
+// Billing & usage
+// ---------------------------------------------------------------------------
+
+/// Exactly one row per user; FREE users have an ACTIVE FREE subscription.
+model Subscription {
+  id                 String             @id @default(uuid(7)) @db.Uuid
+  userId             String             @unique @db.Uuid
+  plan               Plan               @default(FREE)
+  status             SubscriptionStatus @default(ACTIVE)
+  /// BillingProvider id ("mock" in the MVP).
+  provider           String             @default("mock")
+  providerRef        String?
+  currentPeriodStart DateTime?          @db.Timestamptz(3)
+  currentPeriodEnd   DateTime?          @db.Timestamptz(3)
+  cancelAtPeriodEnd  Boolean            @default(false)
+  canceledAt         DateTime?          @db.Timestamptz(3)
+  createdAt          DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime           @updatedAt @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerRef])
+}
+
+/// Metered usage counter per user, metric and period (period start in UTC).
+model Usage {
+  id          String      @id @default(uuid(7)) @db.Uuid
+  userId      String      @db.Uuid
+  metric      UsageMetric
+  periodStart DateTime    @db.Timestamptz(3)
+  count       Int         @default(0)
+  createdAt   DateTime    @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime    @updatedAt @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, metric, periodStart])
+}
+
+// ---------------------------------------------------------------------------
+// Analytics (mock provider sink, admin metrics in development)
+// ---------------------------------------------------------------------------
+
+model AnalyticsEvent {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  userId     String?  @db.Uuid
+  name       String
+  properties Json     @default("{}")
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([name, createdAt])
+  @@index([userId, createdAt])
+}

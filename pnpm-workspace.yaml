@@ -19,5 +19,6 @@ allowBuilds:
   unrs-resolver: true
   '@prisma/engines': true
   prisma: true
+  argon2: true
   # Telemetry postinstall pulled in by swagger-ui-dist; not needed.
   '@scarf/scarf': false

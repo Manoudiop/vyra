@@ -3,6 +3,7 @@ import globals from 'globals';
 
 export default [
   ...base,
+  { ignores: ['src/generated/**', 'uploads/**'] },
   {
     files: ['**/*.spec.ts', '**/*.e2e-spec.ts', 'test/**/*.ts'],
     languageOptions: { globals: { ...globals.jest } },

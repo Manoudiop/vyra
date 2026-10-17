@@ -10,7 +10,8 @@ Plan d'implémentation et décisions : [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEM
 | Phase  | Contenu                                                  | État    |
 | ------ | -------------------------------------------------------- | ------- |
 | 1      | Monorepo, configuration, squelettes API / mobile / admin | ✅      |
-| 2 → 18 | Base de données, auth, design system, features…          | à venir |
+| 2      | PostgreSQL, schéma Prisma, migrations, seed de démo      | ✅      |
+| 3 → 18 | Auth, design system, features…                           | à venir |
 
 ## Structure
 
@@ -41,6 +42,8 @@ pnpm install
 cp .env.example .env
 cp apps/mobile/.env.example apps/mobile/.env
 pnpm db:up
+pnpm db:migrate
+pnpm db:seed
 ```
 
 ## Ports (choisis pour ne pas entrer en conflit avec d'autres projets locaux)
@@ -63,9 +66,28 @@ pnpm db:up
 | `pnpm test`                        | Tests (Vitest pour shared, Jest + SWC pour l'API, jest-expo pour le mobile) |
 | `pnpm lint` / `pnpm typecheck`     | ESLint / TypeScript strict sur tout le monorepo                             |
 | `pnpm db:up` / `pnpm db:down`      | Démarre / arrête PostgreSQL et MinIO                                        |
-| `pnpm db:migrate` / `pnpm db:seed` | Migrations / données de démo (Phase 2)                                      |
+| `pnpm db:migrate` / `pnpm db:seed` | Applique les migrations (dev) / recrée les comptes de démo                  |
 
 Lancer une seule app : `pnpm --filter @vyra/api dev`, `pnpm --filter @vyra/mobile web`, `pnpm --filter @vyra/admin dev`.
+
+## Base de données
+
+- PostgreSQL 16 (Docker), Prisma 7 avec l'adaptateur `pg`. Schéma : [apps/api/prisma/schema.prisma](apps/api/prisma/schema.prisma), migrations versionnées dans `apps/api/prisma/migrations`.
+- Le client Prisma est généré dans `apps/api/src/generated/prisma` (non versionné, régénéré par `pnpm install`).
+- Commandes Prisma utiles (depuis `apps/api`) : `pnpm db:migrate` (nouvelle migration en dev), `pnpm db:migrate:deploy` (prod/CI), `pnpm db:studio`.
+- Les images sont référencées par **clé de stockage** (`imageKey`), jamais par URL ; l'API signe les URLs à la lecture.
+
+### Données de démo (`pnpm db:seed`)
+
+Idempotent : les comptes de démo sont supprimés puis recréés à chaque exécution. Refuse de tourner si `NODE_ENV=production`. Mot de passe commun : variable `SEED_DEMO_PASSWORD` de `.env` (valeur de dev dans `.env.example`).
+
+| Compte           | Rôle  | Plan | Contenu                                                                                       |
+| ---------------- | ----- | ---- | --------------------------------------------------------------------------------------------- |
+| `amina@vyra.dev` | USER  | FREE | Dakar, 20 vêtements (dont boubou, wax, caftan), 6 looks, notes, historique, calendrier, usage |
+| `karim@vyra.dev` | USER  | PRO  | Abidjan, 18 vêtements (dont agbada, dashiki), 6 looks, un vêtement « disliked »               |
+| `admin@vyra.dev` | ADMIN | FREE | Accès à l'admin                                                                               |
+
+Les photos de démo sont des illustrations générées (SVG → WebP 1200×1500 + miniature 400×500) écrites dans `STORAGE_LOCAL_DIR` (`apps/api/uploads`, non versionné).
 
 ## Variables d'environnement
 
@@ -87,6 +109,7 @@ Toutes passent par une interface avec une implémentation mock sélectionnée pa
 ## API
 
 - Préfixe `/api`, documentation Swagger sur `/api/docs` (désactivée en production).
+- Sondes : `GET /api/health` (processus vivant) et `GET /api/health/ready` (base joignable, sinon 503).
 - Format d'erreur unique : `{ "error": { "code": "NOT_FOUND", "message": "...", "details": ... } }` — codes dans `packages/shared/src/errors.ts`. Aucune stack trace n'est renvoyée au client.
 - Sécurité de base : `helmet`, CORS par liste blanche (`CORS_ORIGINS`), rate limiting global (`@nestjs/throttler`), validation Zod globale.
 
@@ -96,4 +119,4 @@ Toutes passent par une interface avec une implémentation mock sélectionnée pa
 pnpm test
 ```
 
-Les tests e2e de l'API démarrent l'application complète avec le même pipeline HTTP que la production (`apps/api/src/bootstrap/configure-app.ts`).
+Les tests e2e de l'API démarrent l'application complète avec le même pipeline HTTP que la production (`apps/api/src/bootstrap/configure-app.ts`). Ils tournent sur une base dédiée `vyra_test`, créée et migrée automatiquement (`apps/api/test/global-setup.ts`) — PostgreSQL doit être démarré (`pnpm db:up`). La suite refuse de s'exécuter sur une base dont le nom ne finit pas par `_test`.

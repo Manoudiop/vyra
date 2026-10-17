@@ -10,11 +10,14 @@ const { exclude: _buildExclude, ...swcConfig } = JSON.parse(
 module.exports = {
   testEnvironment: 'node',
   rootDir: '.',
-  roots: ['<rootDir>/src', '<rootDir>/test'],
+  roots: ['<rootDir>/src', '<rootDir>/test', '<rootDir>/prisma'],
+  globalSetup: '<rootDir>/test/global-setup.ts',
   testRegex: '.*\\.(spec|e2e-spec)\\.ts$',
   transform: {
     '^.+\\.ts$': ['@swc/jest', { ...swcConfig, swcrc: false }],
   },
+  // The generated Prisma client imports its own TS files with '.js' extensions (ESM style).
+  moduleNameMapper: { '^(\\.{1,2}/.*)\\.js$': '$1' },
   setupFiles: ['<rootDir>/test/setup-env.ts'],
-  collectCoverageFrom: ['src/**/*.ts', '!src/main.ts'],
+  collectCoverageFrom: ['src/**/*.ts', '!src/main.ts', '!src/generated/**'],
 };

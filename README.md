@@ -7,12 +7,13 @@ Plan d'implémentation et décisions : [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEM
 
 ## Statut
 
-| Phase  | Contenu                                                             | État    |
-| ------ | ------------------------------------------------------------------- | ------- |
-| 1      | Monorepo, configuration, squelettes API / mobile / admin            | ✅      |
-| 2      | PostgreSQL, schéma Prisma, migrations, seed de démo                 | ✅      |
-| 3      | Authentification API (JWT, refresh rotatif, reset par code, guards) | ✅      |
-| 4 → 18 | Navigation mobile + écrans auth, design system, features…           | à venir |
+| Phase  | Contenu                                                              | État    |
+| ------ | -------------------------------------------------------------------- | ------- |
+| 1      | Monorepo, configuration, squelettes API / mobile / admin             | ✅      |
+| 2      | PostgreSQL, schéma Prisma, migrations, seed de démo                  | ✅      |
+| 3      | Authentification API (JWT, refresh rotatif, reset par code, guards)  | ✅      |
+| 4      | Design system, navigation 5 onglets, écrans d'auth, routes protégées | ✅      |
+| 5 → 18 | Onboarding, dressing, IA, calendrier, abonnements…                   | à venir |
 
 ## Structure
 
@@ -70,6 +71,17 @@ pnpm db:seed
 | `pnpm db:migrate` / `pnpm db:seed` | Applique les migrations (dev) / recrée les comptes de démo                  |
 
 Lancer une seule app : `pnpm --filter @vyra/api dev`, `pnpm --filter @vyra/mobile web`, `pnpm --filter @vyra/admin dev`.
+
+## Application mobile
+
+- **Expo SDK 57 + Expo Router** ; routes dans `apps/mobile/app`, code dans `apps/mobile/src`.
+- **Navigation** : `(auth)` (welcome, login, register, forgot-password, reset-password) et `(app)/(tabs)` (Accueil, Dressing, **Styliste** au centre, Agenda, Profil). Les deux groupes sont gardés par `Stack.Protected` selon l'état de session : un visiteur ne peut atteindre aucun onglet, un utilisateur connecté ne revoit pas les écrans d'auth.
+- **Session** (`src/features/auth/session-store.ts`, Zustand) : seul le refresh token est persisté (SecureStore — Keychain / Keystore ; `localStorage` uniquement sur Expo Web de dev), l'access token reste en mémoire. Au lancement, la session est restaurée avant de masquer le splash ; si l'API est injoignable, un écran « Réessayer » est proposé au lieu de déconnecter. Le refresh est **single-flight** (un seul appel même si plusieurs requêtes expirent en même temps).
+- **Client API** : `authorizedRequest()` ajoute le Bearer, rafraîchit le token s'il expire et rejoue une fois en cas de `AUTH_REQUIRED`.
+- **Design system** (`src/ui`) : tokens de `@vyra/config/tokens`, typo Manrope, `Button`, `TextField`, `Card`, `Chip`, `IconButton`, `Screen` (safe areas, clavier, pull-to-refresh), `ScreenHeader`, `Skeleton`, `EmptyState`, `ErrorState`, retours haptiques (natif uniquement), icônes Lucide.
+- **i18n** : français par défaut, anglais si l'appareil est en anglais (`src/i18n`, clés typées : `en.ts` doit refléter `fr.ts`).
+- **Formulaires** : React Hook Form + Zod, messages traduits ; l'API revalide tout avec `@vyra/shared`.
+- `pnpm --filter @vyra/mobile typecheck` génère d'abord les types des routes typées (`scripts/typegen.js`) — pas besoin de lancer Metro.
 
 ## Base de données
 

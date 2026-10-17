@@ -7,4 +7,16 @@ module.exports = defineConfig([
   {
     ignores: ['dist/*', '.expo/*', 'coverage/*'],
   },
+  {
+    files: ['scripts/**/*.js', '*.config.js', 'jest.setup.ts'],
+    languageOptions: {
+      globals: {
+        __dirname: 'readonly',
+        require: 'readonly',
+        module: 'writable',
+        process: 'readonly',
+      },
+    },
+    rules: { '@typescript-eslint/no-require-imports': 'off' },
+  },
 ]);

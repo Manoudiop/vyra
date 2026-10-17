@@ -1,0 +1,28 @@
+{
+  "name": "vyra",
+  "private": true,
+  "description": "VYRA — AI personal stylist. Ton dressing. Ton style. Ton IA.",
+  "packageManager": "pnpm@11.1.2",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "turbo run dev --filter=@vyra/api --filter=@vyra/mobile",
+    "dev:all": "turbo run dev",
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down",
+    "db:migrate": "pnpm --filter @vyra/api db:migrate",
+    "db:seed": "pnpm --filter @vyra/api db:seed"
+  },
+  "devDependencies": {
+    "prettier": "^3.6.2",
+    "turbo": "^2.11.9",
+    "typescript": "~6.0.3"
+  }
+}

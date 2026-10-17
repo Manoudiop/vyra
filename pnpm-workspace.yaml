@@ -1,0 +1,23 @@
+packages:
+  - 'apps/*'
+  - 'packages/*'
+
+# Expo/React Native + pnpm need a flat node_modules: Metro and several RN
+# libraries assume a single physical copy of react / react-native.
+nodeLinker: hoisted
+
+# react must resolve to exactly one version across mobile and admin, since
+# both live in the same hoisted node_modules.
+overrides:
+  react: 19.2.3
+  react-dom: 19.2.3
+
+allowBuilds:
+  '@swc/core': true
+  esbuild: true
+  sharp: true
+  unrs-resolver: true
+  '@prisma/engines': true
+  prisma: true
+  # Telemetry postinstall pulled in by swagger-ui-dist; not needed.
+  '@scarf/scarf': false

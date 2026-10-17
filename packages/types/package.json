@@ -1,0 +1,28 @@
+{
+  "name": "@vyra/types",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Type-only contracts for VYRA API requests and responses. No runtime code.",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "src"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "@vyra/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@vyra/config": "workspace:*",
+    "eslint": "^9.39.5",
+    "typescript": "~6.0.3"
+  }
+}

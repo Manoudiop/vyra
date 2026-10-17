@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "vyra-mobile-web",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@vyra/mobile", "web"],
+      "port": 8190
+    },
+    {
+      "name": "vyra-admin",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@vyra/admin", "dev"],
+      "port": 4101
+    }
+  ]
+}

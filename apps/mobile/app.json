@@ -1,0 +1,35 @@
+{
+  "expo": {
+    "name": "VYRA",
+    "slug": "vyra",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "vyra",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#F8F7F4",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "app.vyra.mobile"
+    },
+    "android": {
+      "package": "app.vyra.mobile"
+    },
+    "web": {
+      "output": "single"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#F8F7F4"
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
+  }
+}

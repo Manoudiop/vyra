@@ -1,0 +1,52 @@
+/* Values mirror @vyra/config/tokens. */
+:root {
+  --background: #f8f7f4;
+  --surface: #ffffff;
+  --primary: #111111;
+  --secondary: #77736d;
+  --accent: #b79b72;
+  --success: #3e7c65;
+  --danger: #a4473b;
+  --border: #e8e5df;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--background);
+  color: var(--primary);
+  font-family: var(--font-manrope), system-ui, sans-serif;
+}
+
+main {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 48px 24px;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px 24px;
+}
+
+.muted {
+  color: var(--secondary);
+}
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}

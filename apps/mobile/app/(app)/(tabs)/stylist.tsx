@@ -9,9 +9,10 @@ import {
 } from '@vyra/shared';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import {
   Briefcase,
+  CalendarDays,
   Check,
   Coffee,
   Dumbbell,
@@ -25,12 +26,14 @@ import {
   Sparkles,
   Sun,
   UtensilsCrossed,
+  X,
 } from 'lucide-react-native';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { FormBanner } from '@/features/auth/components';
+import { useDayFormat } from '@/features/calendar/hooks';
 import { useClosetList } from '@/features/closet/hooks';
 import { GeneratingOverlay } from '@/features/stylist/GeneratingOverlay';
 import { useGenerateOutfit } from '@/features/stylist/use-generate-outfit';
@@ -94,6 +97,9 @@ function failureOf(error: unknown) {
 
 export default function StylistScreen() {
   const { t } = useTranslation();
+  // Set when coming from a calendar day: the look is for that day.
+  const { date } = useLocalSearchParams<{ date?: string }>();
+  const format = useDayFormat();
   const [occasion, setOccasion] = useState<Occasion | null>(null);
   const [style, setStyle] = useState<Style | null>(null);
   const [styleTouched, setStyleTouched] = useState(false);
@@ -121,10 +127,14 @@ export default function StylistScreen() {
           avoidKinds: active.flatMap((toggle) => (toggle.kind ? [toggle.kind] : [])),
           ...(requiredItemId ? { requiredItemId } : {}),
         },
+        ...(date ? { date } : {}),
       },
       {
         onSuccess: ({ outfit }) =>
-          router.push({ pathname: '/outfit/[id]', params: { id: outfit.id } }),
+          router.push({
+            pathname: '/outfit/[id]',
+            params: { id: outfit.id, ...(date ? { planFor: date } : {}) },
+          }),
       },
     );
   };
@@ -180,6 +190,25 @@ export default function StylistScreen() {
             </Text>
           </LinearGradient>
         </Animated.View>
+
+        {date && (
+          <Card style={styles.forDay} testID="stylist-for-day">
+            <CalendarDays size={18} color={colors.accent} />
+            <Text variant="bodyStrong" style={styles.forDayLabel}>
+              {t('stylist.forDay', {
+                date: format(date, { weekday: 'long', day: 'numeric', month: 'long' }),
+              })}
+            </Text>
+            <PressableScale
+              testID="stylist-for-day-clear"
+              accessibilityRole="button"
+              accessibilityLabel={t('stylist.forDayClear')}
+              onPress={() => router.setParams({ date: undefined })}
+            >
+              <X size={18} color={colors.secondary} />
+            </PressableScale>
+          </Card>
+        )}
 
         {failure?.reason === 'INCOMPLETE_CLOSET' && (
           <Card style={styles.incomplete} testID="stylist-incomplete">
@@ -344,6 +373,8 @@ const styles = StyleSheet.create({
   },
   heroBody: { color: 'rgba(255,255,255,0.72)' },
   incomplete: { marginTop: spacing.xl },
+  forDay: { marginTop: spacing.lg, flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  forDayLabel: { flex: 1 },
   section: { gap: spacing.md, marginTop: spacing.xl },
   sectionHeader: { flexDirection: 'row', alignItems: 'baseline', gap: spacing.sm },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },

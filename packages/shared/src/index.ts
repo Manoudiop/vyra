@@ -1,5 +1,6 @@
 export * from './ai';
 export * from './auth';
+export * from './calendar';
 export * from './catalog';
 export * from './closet';
 export * from './errors';

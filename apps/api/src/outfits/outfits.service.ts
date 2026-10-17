@@ -1,5 +1,7 @@
 import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 import {
+  addDays,
+  daysBetween,
   dislikeReasonSchema,
   type GenerateOutfitResponse,
   type generateOutfitRequestSchema,
@@ -9,6 +11,7 @@ import {
   type OutfitFeedbackInput,
   type OutfitPage,
   type outfitsQuerySchema,
+  PLAN_AHEAD_DAYS,
   type Style,
   type UpdateOutfitInput,
 } from '@vyra/shared';
@@ -17,7 +20,7 @@ import { type AIClothingItem, AIProvider, type OutfitCandidate } from '../ai/ai.
 import { explainOutfit, outfitName } from '../ai/mock/stylist-copy';
 import { ClosetService } from '../closet/closet.service';
 import { AppException } from '../common/errors/app.exception';
-import { localDay } from '../common/time/local-day';
+import { dateColumn, dayOfDateColumn, localDay, startOfLocalDay } from '../common/time/local-day';
 import { type Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import {
@@ -33,6 +36,8 @@ type OutfitsQuery = z.output<typeof outfitsQuerySchema>;
 
 const DAY_MS = 86_400_000;
 const WEAR_WINDOW_DAYS = 30;
+/** Looks planned this close to the target day count as a use of their pieces. */
+const PLANNED_WINDOW_DAYS = 7;
 const RECENT_GENERATION_DAYS = 14;
 
 /** Display order of pieces in an outfit. */
@@ -79,20 +84,48 @@ export class OutfitsService {
 
   async generate(userId: string, request: GenerateRequest): Promise<GenerateOutfitResponse> {
     const now = Date.now();
-    const [items, preferences, profile, wears, recentOutfits, feedback, excluded] =
+    const profile = await this.prisma.profile.findUnique({
+      where: { userId },
+      select: { locale: true, timezone: true },
+    });
+    const timezone = profile?.timezone ?? 'UTC';
+    const today = localDay(new Date(now), timezone);
+    // The day the look is for: anti-repetition is measured around it, not around now.
+    const target = request.date ?? today;
+    const ahead = daysBetween(today, target);
+    if (ahead < 0 || ahead > PLAN_AHEAD_DAYS) {
+      throw new AppException(
+        'VALIDATION_ERROR',
+        'Outfits can be generated for today or an upcoming day.',
+        { reason: 'DATE_OUT_OF_RANGE' },
+        HttpStatus.UNPROCESSABLE_ENTITY,
+      );
+    }
+
+    const [items, preferences, wears, planned, recentOutfits, feedback, excluded] =
       await Promise.all([
         this.prisma.clothingItem.findMany({ where: { userId, archivedAt: null } }),
         this.prisma.stylePreference.findUnique({ where: { userId } }),
-        this.prisma.profile.findUnique({
-          where: { userId },
-          select: { locale: true, timezone: true },
-        }),
         this.prisma.wearHistory.findMany({
-          where: { userId, wornAt: { gte: new Date(now - WEAR_WINDOW_DAYS * DAY_MS) } },
-          select: {
-            wornAt: true,
-            outfit: { select: { items: { select: { clothingItemId: true } } } },
+          where: {
+            userId,
+            wornAt: {
+              gte: startOfLocalDay(addDays(target, -WEAR_WINDOW_DAYS), timezone),
+              lt: startOfLocalDay(addDays(target, 1), timezone),
+            },
           },
+          select: { wornAt: true, outfit: { select: PIECES_SELECT } },
+        }),
+        this.prisma.calendarEvent.findMany({
+          where: {
+            userId,
+            date: {
+              gte: dateColumn(addDays(target, -PLANNED_WINDOW_DAYS)),
+              lte: dateColumn(addDays(target, PLANNED_WINDOW_DAYS)),
+              not: dateColumn(target),
+            },
+          },
+          select: { date: true, outfit: { select: PIECES_SELECT } },
         }),
         this.prisma.outfit.findMany({
           where: { userId, createdAt: { gte: new Date(now - RECENT_GENERATION_DAYS * DAY_MS) } },
@@ -120,13 +153,26 @@ export class OutfitsService {
       .filter((entry) => entry.rating === 'DISLIKE')
       .map((entry) => entry.outfit);
 
-    const lastWornDaysAgo = new Map<string, number>();
-    for (const wear of wears) {
-      const days = Math.floor((now - wear.wornAt.getTime()) / DAY_MS);
-      for (const { clothingItemId } of wear.outfit.items) {
-        const previous = lastWornDaysAgo.get(clothingItemId);
-        if (previous === undefined || days < previous) lastWornDaysAgo.set(clothingItemId, days);
+    // Closest use of each piece around the target day: worn before it, or
+    // planned in the calendar a few days before or after.
+    const wornDistance = new Map<string, number>();
+    const useDistanceDays = new Map<string, number>();
+    const usedBases = new Map<string, number>();
+    const closest = (map: Map<string, number>, key: string, days: number) => {
+      const previous = map.get(key);
+      if (previous === undefined || days < previous) map.set(key, days);
+    };
+    const use = (outfit: OutfitPieces, days: number, worn: boolean) => {
+      for (const { clothingItem } of outfit.items) {
+        closest(useDistanceDays, clothingItem.id, days);
+        if (worn) closest(wornDistance, clothingItem.id, days);
       }
+      closest(usedBases, piecesBase(outfit), days);
+    };
+    for (const wear of wears)
+      use(wear.outfit, daysBetween(localDay(wear.wornAt, timezone), target), true);
+    for (const event of planned) {
+      use(event.outfit, Math.abs(daysBetween(dayOfDateColumn(event.date), target)), false);
     }
 
     const engineItems: EngineItem[] = items.map((item) => ({
@@ -149,7 +195,7 @@ export class OutfitsService {
         styles: preferences?.preferredStyles ?? [],
         dislikedItemIds: preferences?.dislikedItems ?? [],
       },
-      lastWornDaysAgo,
+      useDistanceDays,
       lovedItemIds: new Set(
         feedback
           .filter((entry) => entry.rating === 'LOVE')
@@ -160,6 +206,7 @@ export class OutfitsService {
       dislikedBases: new Set(disliked.map(piecesBase)),
       excludedCombos: new Set(excluded.map(piecesKey)),
       excludedBases: new Set(excluded.map(piecesBase)),
+      usedBases,
       // Varies across requests; "try another" relies on exclusions, not luck.
       seed: Math.floor(now / 1000),
     });
@@ -179,7 +226,7 @@ export class OutfitsService {
     const recentlyWorn = (candidate: Candidate) =>
       candidate.items
         .map((item) => item.id)
-        .filter((id) => (lastWornDaysAgo.get(id) ?? Number.POSITIVE_INFINITY) <= 7);
+        .filter((id) => (wornDistance.get(id) ?? Number.POSITIVE_INFINITY) <= 7);
     const aiCandidates: OutfitCandidate[] = result.candidates.map((candidate) => ({
       items: candidate.items.map(toAI),
       score: candidate.score,
@@ -222,7 +269,7 @@ export class OutfitsService {
     });
 
     return {
-      outfit: await this.toDto(outfit, profile?.timezone ?? 'UTC'),
+      outfit: await this.toDto(outfit, timezone),
       provider: this.provider.name,
       candidateCount: result.candidates.length,
     };

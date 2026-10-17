@@ -10,6 +10,7 @@ import { authorizedRequest } from '@/lib/authorized-request';
 export const outfitKeys = {
   all: ['outfits'] as const,
   saved: () => [...outfitKeys.all, 'saved'] as const,
+  recent: () => [...outfitKeys.all, 'recent'] as const,
   detail: (id: string) => [...outfitKeys.all, id] as const,
 };
 
@@ -17,6 +18,8 @@ export const stylistApi = {
   generate: (body: GenerateOutfitRequest) =>
     authorizedRequest<GenerateOutfitResponse>('/ai/generate-outfit', { method: 'POST', body }),
   getOutfit: (id: string) => authorizedRequest<Outfit>(`/outfits/${id}`),
+  list: (cursor: string | null) =>
+    authorizedRequest<OutfitPage>(`/outfits${cursor ? `?cursor=${cursor}` : ''}`),
   listSaved: (cursor: string | null) =>
     authorizedRequest<OutfitPage>(`/outfits?saved=true${cursor ? `&cursor=${cursor}` : ''}`),
   setSaved: (id: string, isSaved: boolean) =>

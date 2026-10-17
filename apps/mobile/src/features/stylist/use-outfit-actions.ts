@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { type Outfit, type OutfitFeedbackInput } from '@vyra/shared';
+import { calendarKeys } from '@/features/calendar/calendar-api';
 import { closetKeys } from '@/features/closet/closet-api';
 import { haptics } from '@/ui';
 import { outfitKeys, stylistApi } from './stylist-api';
@@ -65,8 +66,11 @@ export function useOutfitAction(id: string) {
       queryClient.setQueryData(key, outfit);
       if (action.type === 'save')
         void queryClient.invalidateQueries({ queryKey: outfitKeys.saved() });
-      // Wear counts and "last worn" are shown on each piece.
-      if (action.type === 'wear') void queryClient.invalidateQueries({ queryKey: closetKeys.all });
+      if (action.type === 'wear') {
+        // Wear counts and "last worn" are shown on each piece, wears in the calendar.
+        void queryClient.invalidateQueries({ queryKey: closetKeys.all });
+        void queryClient.invalidateQueries({ queryKey: calendarKeys.all });
+      }
     },
   });
 }

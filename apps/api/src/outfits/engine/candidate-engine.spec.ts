@@ -127,12 +127,13 @@ function context(
     style,
     constraints: { avoidColors: [], avoidKinds: [], ...constraints },
     preferences: { colors: [], styles: [], dislikedItemIds: [] },
-    lastWornDaysAgo: new Map(),
+    useDistanceDays: new Map(),
     lovedItemIds: new Set(),
     recentCombos: new Set(),
     dislikedCombos: new Set(),
     excludedCombos: new Set(),
     dislikedBases: new Set(),
+    usedBases: new Map(),
     excludedBases: new Set(),
     seed: 1,
     ...rest,
@@ -228,7 +229,7 @@ describe('generateCandidates', () => {
     const next = best(
       generateCandidates(
         closet,
-        context('WORK', 'SMART_CASUAL', { lastWornDaysAgo: new Map([[worn.id, 1]]) }),
+        context('WORK', 'SMART_CASUAL', { useDistanceDays: new Map([[worn.id, 1]]) }),
       ),
     );
     expect(names(next)).not.toContain(wornTop);
@@ -239,7 +240,7 @@ describe('generateCandidates', () => {
     const outfit = best(
       generateCandidates(
         CLOSET,
-        context('WORK', 'SMART_CASUAL', { lastWornDaysAgo: new Map([[oxford.id, 1]]) }),
+        context('WORK', 'SMART_CASUAL', { useDistanceDays: new Map([[oxford.id, 1]]) }),
       ),
     );
     expect(names(outfit)).toContain('Chemise oxford');
@@ -286,6 +287,36 @@ describe('generateCandidates', () => {
       ),
     );
     expect(baseKeyOf(next.items)).not.toBe(base);
+  });
+
+  it('avoids repeating main pieces used a few days around the target day', () => {
+    const linen = item({
+      category: 'TOPS',
+      name: 'Chemise en lin',
+      subcategory: 'shirt',
+      color: 'white',
+      style: 'SMART_CASUAL',
+    });
+    const closet = [...CLOSET, linen];
+    const usual = best(generateCandidates(closet, context('WORK', 'SMART_CASUAL')));
+    const base = baseKeyOf(usual.items);
+    // Pieces used 3 days away: the per-piece penalty alone is mild.
+    const useDistanceDays = new Map(usual.items.map((piece) => [piece.id, 3]));
+    const next = best(
+      generateCandidates(
+        closet,
+        context('WORK', 'SMART_CASUAL', { useDistanceDays, usedBases: new Map([[base, 3]]) }),
+      ),
+    );
+    expect(baseKeyOf(next.items)).not.toBe(base);
+    // A month later the look is fair game again.
+    const later = best(
+      generateCandidates(
+        closet,
+        context('WORK', 'SMART_CASUAL', { usedBases: new Map([[base, 30]]) }),
+      ),
+    );
+    expect(baseKeyOf(later.items)).toBe(base);
   });
 
   it('makes "another look" change the main pieces, not just the accessories', () => {

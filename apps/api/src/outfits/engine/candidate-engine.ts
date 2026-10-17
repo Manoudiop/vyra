@@ -31,8 +31,11 @@ export interface EngineContext {
   style: Style;
   constraints: OutfitConstraints;
   preferences: { colors: string[]; styles: Style[]; dislikedItemIds: string[] };
-  /** Days since each item was last worn (missing = not worn recently). */
-  lastWornDaysAgo: Map<string, number>;
+  /**
+   * Days between the target day and the closest other use of each item: worn
+   * before it, or planned in the calendar around it (missing = no use nearby).
+   */
+  useDistanceDays: Map<string, number>;
   /** Items present in outfits the user loved. */
   lovedItemIds: Set<string>;
   /** Combination keys generated recently (mild penalty) or disliked (strong penalty). */
@@ -46,6 +49,11 @@ export interface EngineContext {
    */
   dislikedBases: Set<string>;
   excludedBases: Set<string>;
+  /**
+   * Main-piece keys worn or planned around the target day, with their distance
+   * in days: repeating a whole look within the week weighs more than sharing a piece.
+   */
+  usedBases: Map<string, number>;
   /** Variety: different seeds break near-ties differently. */
   seed: number;
 }
@@ -197,10 +205,16 @@ function jitter(seed: number, key: string): number {
   return ((hash >>> 0) % 10_000) / 10_000;
 }
 
-export function recencyPenalty(daysAgo: number | undefined): number {
-  if (daysAgo === undefined || daysAgo < 0) return 0;
-  // Worn today: strong penalty; it fades over about a week.
-  return 0.35 * Math.exp(-daysAgo / 4);
+export function recencyPenalty(distanceDays: number | undefined): number {
+  if (distanceDays === undefined || distanceDays < 0) return 0;
+  // Used the same day: strong penalty; it fades over about a week.
+  return 0.35 * Math.exp(-distanceDays / 4);
+}
+
+/** Same main pieces as a look used `distanceDays` from the target day. */
+export function baseRepeatPenalty(distanceDays: number | undefined): number {
+  if (distanceDays === undefined || distanceDays < 0) return 0;
+  return 0.3 * Math.exp(-distanceDays / 5);
 }
 
 export function scoreItem(item: EngineItem, context: EngineContext): number {
@@ -212,7 +226,7 @@ export function scoreItem(item: EngineItem, context: EngineContext): number {
   if (style && context.preferences.styles.includes(style)) score += 0.08;
   if (item.isFavorite) score += 0.06;
   if (context.lovedItemIds.has(item.id)) score += 0.05;
-  return score - recencyPenalty(context.lastWornDaysAgo.get(item.id));
+  return score - recencyPenalty(context.useDistanceDays.get(item.id));
 }
 
 /** Color harmony of the visible pieces (accessories excluded). */
@@ -352,6 +366,7 @@ export function generateCandidates(closet: EngineItem[], context: EngineContext)
           if (context.dislikedCombos.has(key)) score -= 0.4;
           else if (context.dislikedBases.has(baseKey)) score -= 0.3;
           if (context.excludedBases.has(baseKey)) score -= 0.25;
+          score -= baseRepeatPenalty(context.usedBases.get(baseKey));
           score += (jitter(context.seed, key) - 0.5) * 0.04;
           candidates.push({ items, slots, key, score: Math.max(0, Math.min(1, score)) });
         }

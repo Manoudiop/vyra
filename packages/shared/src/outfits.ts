@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { calendarDateSchema } from './calendar';
 import { occasionSchema, styleSchema } from './catalog';
 import { clothingItemSchema } from './closet';
 import { styleColorSchema } from './profile';
@@ -24,6 +25,8 @@ export const generateOutfitRequestSchema = z.object({
   constraints: outfitConstraintsSchema,
   /** "Try another": outfits whose exact combinations must not be proposed again. */
   excludeOutfitIds: z.array(z.uuid()).max(20).default([]),
+  /** Day the look is for (calendar), so anti-repetition looks around that day. Defaults to today. */
+  date: calendarDateSchema.optional(),
 });
 export type GenerateOutfitRequest = z.input<typeof generateOutfitRequestSchema>;
 

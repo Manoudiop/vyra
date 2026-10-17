@@ -15,6 +15,7 @@ import { AppException } from '../common/errors/app.exception';
 import { type Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService, userKeyPrefix } from '../storage/storage.service';
+import { PlansService } from '../subscriptions/plans.service';
 
 type ClosetQueryParsed = z.output<typeof closetQuerySchema>;
 export type ItemRow = Prisma.ClothingItemGetPayload<object>;
@@ -30,6 +31,7 @@ export class ClosetService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
+    private readonly plans: PlansService,
   ) {}
 
   async list(userId: string, query: ClosetQueryParsed): Promise<ClosetPage> {
@@ -72,7 +74,7 @@ export class ClosetService {
         _count: { _all: true },
       }),
       this.prisma.clothingItem.count({ where: { userId, archivedAt: null, isFavorite: true } }),
-      this.currentPlan(userId),
+      this.plans.currentPlan(userId),
     ]);
 
     const byCategory = emptyCategoryCounts();
@@ -114,7 +116,7 @@ export class ClosetService {
       }
     }
 
-    const plan = await this.currentPlan(userId);
+    const plan = await this.plans.currentPlan(userId);
     const max = PLAN_DEFINITIONS[plan].maxClothingItems;
     if (max !== null) {
       const count = await this.prisma.clothingItem.count({ where: { userId, archivedAt: null } });
@@ -185,16 +187,6 @@ export class ClosetService {
     });
     if (!row) throw notFound();
     return row;
-  }
-
-  private async currentPlan(userId: string) {
-    const subscription = await this.prisma.subscription.findUnique({
-      where: { userId },
-      select: { plan: true, status: true },
-    });
-    return subscription && ['ACTIVE', 'TRIALING'].includes(subscription.status)
-      ? subscription.plan
-      : 'FREE';
   }
 
   /** Public so other modules (outfits) present items exactly like the closet does. */

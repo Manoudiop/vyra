@@ -11,6 +11,8 @@ import { router, useLocalSearchParams } from 'expo-router';
 import {
   ArrowLeft,
   Bookmark,
+  CalendarCheck,
+  CalendarPlus,
   Check,
   Heart,
   type LucideIcon,
@@ -23,6 +25,7 @@ import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 import Animated, { FadeIn, FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { FormBanner } from '@/features/auth/components';
+import { useDayFormat, usePlanDay } from '@/features/calendar/hooks';
 import { GeneratingOverlay } from '@/features/stylist/GeneratingOverlay';
 import { outfitKeys, stylistApi } from '@/features/stylist/stylist-api';
 import { useGenerateOutfit } from '@/features/stylist/use-generate-outfit';
@@ -49,7 +52,14 @@ import {
 
 export default function OutfitScreen() {
   const { t, i18n } = useTranslation();
-  const { id, exclude } = useLocalSearchParams<{ id: string; exclude?: string }>();
+  const { id, exclude, planFor } = useLocalSearchParams<{
+    id: string;
+    exclude?: string;
+    /** Set when the look was created for a calendar day. */
+    planFor?: string;
+  }>();
+  const format = useDayFormat();
+  const planDay = usePlanDay();
   const outfit = useQuery({
     queryKey: outfitKeys.detail(id),
     queryFn: () => stylistApi.getOutfit(id),
@@ -95,12 +105,13 @@ export default function OutfitScreen() {
         style: data.style,
         constraints: data.constraints ?? undefined,
         excludeOutfitIds: seen.slice(-20),
+        ...(planFor ? { date: planFor } : {}),
       },
       {
         onSuccess: ({ outfit: next }) =>
           router.replace({
             pathname: '/outfit/[id]',
-            params: { id: next.id, exclude: seen.join(',') },
+            params: { id: next.id, exclude: seen.join(','), ...(planFor ? { planFor } : {}) },
           }),
       },
     );
@@ -108,9 +119,14 @@ export default function OutfitScreen() {
 
   const errorText = action.isError
     ? errorMessage(action.error, t)
-    : another.isError
-      ? errorMessage(another.error, t)
-      : null;
+    : planDay.isError
+      ? errorMessage(planDay.error, t, { LIMIT_REACHED: t('calendar.lockedBody') })
+      : another.isError
+        ? errorMessage(another.error, t)
+        : null;
+  const planForLabel = planFor
+    ? format(planFor, { weekday: 'long', day: 'numeric', month: 'long' })
+    : null;
   const lastWorn =
     data.lastWornAt && !data.wornToday
       ? new Date(data.lastWornAt).toLocaleDateString(i18n.language, {
@@ -126,7 +142,23 @@ export default function OutfitScreen() {
         footer={
           <View style={styles.footer}>
             {errorText && <FormBanner tone="error" message={errorText} />}
-            {data.wornToday ? (
+            {planFor && planForLabel ? (
+              <Button
+                testID="outfit-plan-for"
+                label={t('calendar.planFor', { date: planForLabel })}
+                icon={CalendarCheck}
+                loading={planDay.isPending}
+                onPress={() =>
+                  planDay.mutate(
+                    { date: planFor, outfitId: data.id },
+                    {
+                      onSuccess: () =>
+                        router.navigate({ pathname: '/calendar', params: { date: planFor } }),
+                    },
+                  )
+                }
+              />
+            ) : data.wornToday ? (
               <Animated.View
                 entering={FadeIn.duration(260)}
                 style={styles.worn}
@@ -171,13 +203,23 @@ export default function OutfitScreen() {
       >
         <View style={[styles.header, styles.headerRow]}>
           {back}
-          <IconButton
-            testID="outfit-save"
-            icon={Bookmark}
-            selected={data.isSaved}
-            accessibilityLabel={data.isSaved ? t('outfit.unsave') : t('outfit.save')}
-            onPress={() => action.mutate({ type: 'save', isSaved: !data.isSaved })}
-          />
+          <View style={styles.headerActions}>
+            <IconButton
+              testID="outfit-plan"
+              icon={CalendarPlus}
+              accessibilityLabel={t('calendar.planThisLook')}
+              onPress={() =>
+                router.push({ pathname: '/plan-outfit/[id]', params: { id: data.id } })
+              }
+            />
+            <IconButton
+              testID="outfit-save"
+              icon={Bookmark}
+              selected={data.isSaved}
+              accessibilityLabel={data.isSaved ? t('outfit.unsave') : t('outfit.save')}
+              onPress={() => action.mutate({ type: 'save', isSaved: !data.isSaved })}
+            />
+          </View>
         </View>
         <Animated.View entering={FadeInDown.duration(380)} style={styles.titleBlock}>
           <Text variant="overline" color="secondary">
@@ -379,6 +421,7 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   header: { paddingTop: spacing.md, paddingBottom: spacing.lg },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  headerActions: { flexDirection: 'row', gap: spacing.sm },
   loading: { gap: spacing.lg },
   titleBlock: { gap: spacing.xs, marginBottom: spacing.xl },
   board: { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -spacing.xs },

@@ -1,7 +1,7 @@
 # VYRA — Plan d'implémentation MVP
 
 > "Ton dressing. Ton style. Ton IA."
-> Statut : Phases 1–10 terminées (2026-10-18). Prochaine : Phase 11 (calendrier et historique de port).
+> Statut : Phases 1–11 terminées (2026-10-18). Prochaine : Phase 12 (apprentissage du style : préférences recalculées à partir des avis et des ports, `analyzeStyle`).
 >
 > Écarts vs plan, décidés en cours de route :
 >
@@ -17,6 +17,7 @@
 > - **Phase 8** : le mock IA est une vraie analyse d'image heuristique (pas des réponses figées), validée sur les 17 types de pièces du seed. Palette étendue à 20 couleurs (ajout bordeaux, orange, violet, argent) ; correspondance des couleurs en CIELAB (la distance RVB confondait sable/rose et denim/violet). Limite connue : comme tout modèle de silhouette, il suppose une pièce centrée sur fond uni (c'est ce que l'écran d'ajout conseille) ; un blazer et une chemise ont la même silhouette. Le comptage d'usage (`CLOTHING_ANALYSIS`) arrive avec la phase 14.
 > - **Phase 9** : la saison n'entre pas encore dans le score (elle n'a pas de sens sans la météo pour des villes tropicales comme Dakar ou Abidjan) : elle arrivera avec la météo en phase 13. Le mock choisit le meilleur candidat du moteur ; un vrai modèle pourra arbitrer parmi les 5. Un look rejeté pénalise aussi ses pièces principales, et « un autre look » écarte les pièces principales déjà vues (corrigé après vérification sur les données d'Amina).
 > - **Phase 10** : « porter aujourd'hui » suit le jour **local** de l'utilisateur (`Profile.timezone`), un seul port par jour et par look, annulable le jour même. La raison facultative de « Pas pour moi » (4 choix fermés) est stockée dans `OutfitFeedback.comment` ; elle servira à l'apprentissage du style (phase 12). Ajout d'un écran « Looks enregistrés » (accessible depuis le Profil), sans quoi « enregistrer » n'aurait pas de destination. Le look généré est relu hors de la transaction de création (Prisma chargeait les relations en parallèle sur le client de transaction, ce que `pg` dépréciera).
+> - **Phase 11** : jours de calendrier = chaînes `YYYY-MM-DD` dans le fuseau de l'utilisateur (`Profile.timezone`), calculs en minuit UTC (sans heure d'été) dans `@vyra/shared`, bornes d'instants via `startOfLocalDay` (testé aux changements d'heure). Gating FREE appliqué dès maintenant (semaine en cours pour l'agenda, 7 jours glissants pour l'historique) via `PlansService`, avec `402 LIMIT_REACHED` qui servira de déclencheur au paywall (phase 15). On ne planifie pas dans le passé (l'historique sert à cela) mais on peut y retirer un look. Les « bottom sheets » sont des routes en `presentation: 'modal'` (feuille native glissable sur iOS, comme l'ajout de pièce), pas de bibliothèque de sheet. Anti-répétition : vérification en conditions réelles, la même base chemise oxford + chino revenait à 3 jours d'intervalle (pénalité par pièce trop faible), d'où l'ajout d'une pénalité par base (`usedBases`).
 > - `OutfitItem → ClothingItem` est en `ON DELETE CASCADE` : Postgres refusait la suppression en cascade d'un utilisateur avec `RESTRICT`/`NO ACTION`. Sans risque pour l'historique, car l'app n'efface jamais un vêtement en dur (archivage via `archivedAt`).
 
 ## 0. État du repository

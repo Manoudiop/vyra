@@ -23,14 +23,16 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   const { body, headers, ...init } = options;
   let response: Response;
   try {
+    // Multipart bodies are sent as-is: fetch sets the boundary in Content-Type itself.
+    const multipart = typeof FormData !== 'undefined' && body instanceof FormData;
     response = await fetch(`${API_URL}${path}`, {
       ...init,
       headers: {
         Accept: 'application/json',
-        ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+        ...(body !== undefined && !multipart ? { 'Content-Type': 'application/json' } : {}),
         ...headers,
       },
-      body: body !== undefined ? JSON.stringify(body) : undefined,
+      body: multipart ? (body as FormData) : body !== undefined ? JSON.stringify(body) : undefined,
     });
   } catch {
     throw new ApiError('NETWORK_ERROR', 'Unable to reach VYRA. Check your connection.', null);

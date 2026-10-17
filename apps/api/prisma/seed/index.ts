@@ -5,13 +5,14 @@
  *
  *   pnpm db:seed
  */
-import { mkdir, rm, writeFile } from 'node:fs/promises';
-import { dirname, resolve } from 'node:path';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { getMeteredLimit, getPeriodStart } from '@vyra/shared';
 import { config as loadEnv } from 'dotenv';
 import { hashPassword } from '../../src/common/security/password';
 import { PrismaClient } from '../../src/generated/prisma/client';
+import { LocalStorageAdapter } from '../../src/storage/local-storage.adapter';
+import { S3StorageAdapter } from '../../src/storage/s3-storage.adapter';
+import { type StorageService } from '../../src/storage/storage.service';
 import { DEMO_USERS, type DemoUser } from './demo-data';
 import { renderGarment } from './garment-images';
 
@@ -37,17 +38,31 @@ function morningOf(daysAgo: number, now: Date): Date {
   return new Date(day.getTime() + 8.5 * 60 * 60 * 1000);
 }
 
-async function writeObject(storageRoot: string, key: string, data: Buffer): Promise<void> {
-  const target = resolve(storageRoot, key);
-  await mkdir(dirname(target), { recursive: true });
-  await writeFile(target, data);
+/** Same driver as the API (STORAGE_DRIVER), so seeded images are where the API looks. */
+async function createStorage(): Promise<{ storage: StorageService; label: string }> {
+  if (process.env.STORAGE_DRIVER === 's3') {
+    const bucket = requireEnv('S3_BUCKET');
+    const storage = new S3StorageAdapter({
+      bucket,
+      region: requireEnv('S3_REGION'),
+      endpoint: process.env.S3_ENDPOINT,
+      forcePathStyle: process.env.S3_FORCE_PATH_STYLE === 'true',
+      accessKeyId: requireEnv('S3_ACCESS_KEY_ID'),
+      secretAccessKey: requireEnv('S3_SECRET_ACCESS_KEY'),
+    });
+    await storage.ensureBucket();
+    return { storage, label: `s3://${bucket}` };
+  }
+  const root = process.env.STORAGE_LOCAL_DIR ?? './uploads';
+  // The signing key is irrelevant here: the seed only writes objects.
+  return { storage: new LocalStorageAdapter(root, 'http://localhost', 'seed'), label: root };
 }
 
 async function seedUser(
   prisma: PrismaClient,
   demo: DemoUser,
   passwordHash: string,
-  storageRoot: string,
+  storage: StorageService,
   now: Date,
 ): Promise<{ items: number; outfits: number }> {
   const user = await prisma.user.create({
@@ -99,8 +114,8 @@ async function seedUser(
     const imageKey = `users/${user.id}/clothing/${created.id}.webp`;
     const thumbnailKey = `users/${user.id}/clothing/${created.id}_thumb.webp`;
     const rendered = await renderGarment(demoItem.art);
-    await writeObject(storageRoot, imageKey, rendered.image);
-    await writeObject(storageRoot, thumbnailKey, rendered.thumbnail);
+    await storage.upload(imageKey, rendered.image, 'image/webp');
+    await storage.upload(thumbnailKey, rendered.thumbnail, 'image/webp');
     await prisma.clothingItem.update({
       where: { id: created.id },
       data: { imageKey, thumbnailKey },
@@ -212,30 +227,31 @@ async function main(): Promise<void> {
   const prisma = new PrismaClient({
     adapter: new PrismaPg({ connectionString: requireEnv('DATABASE_URL') }),
   });
-  const storageRoot = resolve(process.env.STORAGE_LOCAL_DIR ?? './uploads');
+  const { storage, label } = await createStorage();
   const passwordHash = await hashPassword(requireEnv('SEED_DEMO_PASSWORD'));
   const now = new Date();
 
   try {
     // Cascades remove every demo row (closet, outfits, history, usage...); their images go too.
     const demoEmails = DEMO_USERS.map((u) => u.email);
-    const previous = await prisma.user.findMany({
-      where: { email: { in: demoEmails } },
-      select: { id: true },
+    const previousImages = await prisma.clothingItem.findMany({
+      where: { user: { email: { in: demoEmails } } },
+      select: { imageKey: true, thumbnailKey: true },
     });
     await prisma.user.deleteMany({ where: { email: { in: demoEmails } } });
-    for (const { id } of previous) {
-      await rm(resolve(storageRoot, 'users', id), { recursive: true, force: true });
+    for (const { imageKey, thumbnailKey } of previousImages) {
+      await storage.delete(imageKey);
+      if (thumbnailKey) await storage.delete(thumbnailKey);
     }
 
     for (const demo of DEMO_USERS) {
-      const result = await seedUser(prisma, demo, passwordHash, storageRoot, now);
+      const result = await seedUser(prisma, demo, passwordHash, storage, now);
       console.warn(
         `  ✓ ${demo.email.padEnd(18)} ${demo.role.padEnd(5)} ${demo.plan.padEnd(7)} ` +
           `${result.items} items, ${result.outfits} outfits`,
       );
     }
-    console.warn(`Seed complete. Images written to ${storageRoot}`);
+    console.warn(`Seed complete. Images written to ${label}`);
   } finally {
     await prisma.$disconnect();
   }

@@ -26,7 +26,14 @@
           "backgroundColor": "#F8F7F4"
         }
       ],
-      "expo-image"
+      "expo-image",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "VYRA accède à tes photos pour ajouter des vêtements à ton dressing.",
+          "cameraPermission": "VYRA utilise l’appareil photo pour photographier tes vêtements."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

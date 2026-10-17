@@ -59,7 +59,7 @@ export class ClosetService {
 
     const page = rows.slice(0, query.limit);
     return {
-      items: page.map((row) => this.toDto(row)),
+      items: await Promise.all(page.map((row) => this.toDto(row))),
       nextCursor: rows.length > query.limit ? (page.at(-1)?.id ?? null) : null,
     };
   }
@@ -96,7 +96,7 @@ export class ClosetService {
       }),
     ]);
     return {
-      ...this.toDto(row),
+      ...(await this.toDto(row)),
       stats: {
         outfitCount,
         wearCount: wears._count._all,
@@ -127,6 +127,18 @@ export class ClosetService {
           suggestedPlan: 'PRO',
         });
       }
+    }
+
+    // The photo must really have been uploaded (keys are not guessable, but be strict).
+    const missing = await Promise.all(
+      [input.imageKey, input.thumbnailKey]
+        .filter((key): key is string => key !== undefined)
+        .map(async (key) => !(await this.storage.exists(key))),
+    );
+    if (missing.some(Boolean)) {
+      throw new AppException('VALIDATION_ERROR', 'Image not found. Upload the photo again.', {
+        reason: 'IMAGE_NOT_FOUND',
+      });
     }
 
     const row = await this.prisma.clothingItem.create({
@@ -185,7 +197,11 @@ export class ClosetService {
       : 'FREE';
   }
 
-  private toDto(row: ItemRow): ClothingItem {
+  private async toDto(row: ItemRow): Promise<ClothingItem> {
+    const [imageUrl, thumbnailUrl] = await Promise.all([
+      this.storage.getSignedUrl(row.imageKey),
+      this.storage.getSignedUrl(row.thumbnailKey ?? row.imageKey),
+    ]);
     return {
       id: row.id,
       name: row.name,
@@ -196,8 +212,8 @@ export class ClosetService {
       style: row.style,
       season: row.season,
       isFavorite: row.isFavorite,
-      imageUrl: this.storage.getSignedUrl(row.imageKey),
-      thumbnailUrl: this.storage.getSignedUrl(row.thumbnailKey ?? row.imageKey),
+      imageUrl,
+      thumbnailUrl,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
     };

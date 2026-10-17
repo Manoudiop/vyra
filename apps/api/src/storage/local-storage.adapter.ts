@@ -1,10 +1,15 @@
 import { createHmac } from 'node:crypto';
-import { resolve, sep } from 'node:path';
+import { access, mkdir, rm, writeFile } from 'node:fs/promises';
+import { dirname, resolve, sep } from 'node:path';
 import { safeEqualHex } from '../common/security/tokens';
-import { isSafeKey, StorageService } from './storage.service';
+import {
+  isSafeKey,
+  SIGNED_URL_MIN_TTL_SECONDS,
+  signingWindowStart,
+  StorageService,
+} from './storage.service';
 
 export const LOCAL_FILES_ROUTE = 'storage/files';
-const URL_TTL_SECONDS = 60 * 60;
 
 /**
  * Development storage on local disk, served by StorageController through
@@ -22,11 +27,28 @@ export class LocalStorageAdapter extends StorageService {
     this.root = resolve(rootDir);
   }
 
-  getSignedUrl(key: string): string {
-    // Expiry is rounded up to the next hour so a URL stays identical for a while:
-    // clients (expo-image) can then cache images by URL across list refreshes.
-    const now = Math.floor(Date.now() / 1000);
-    const expires = Math.ceil((now + URL_TTL_SECONDS) / URL_TTL_SECONDS) * URL_TTL_SECONDS;
+  async upload(key: string, body: Buffer): Promise<void> {
+    const path = this.pathFor(key);
+    await mkdir(dirname(path), { recursive: true });
+    await writeFile(path, body);
+  }
+
+  async delete(key: string): Promise<void> {
+    await rm(this.pathFor(key), { force: true });
+  }
+
+  async exists(key: string): Promise<boolean> {
+    try {
+      await access(this.pathFor(key));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async getSignedUrl(key: string): Promise<string> {
+    // Valid until the end of the next window: between 1 and 2 hours.
+    const expires = signingWindowStart() + 2 * SIGNED_URL_MIN_TTL_SECONDS;
     const signature = this.sign(key, expires);
     const base = this.publicApiUrl.replace(/\/+$/, '');
     return `${base}/api/${LOCAL_FILES_ROUTE}/${key}?exp=${expires}&sig=${signature}`;
@@ -43,9 +65,18 @@ export class LocalStorageAdapter extends StorageService {
     const expires = Number(exp);
     if (expires < Math.floor(Date.now() / 1000)) return null;
     if (!safeEqualHex(sig, this.sign(key, expires))) return null;
+    return this.safePath(key);
+  }
 
+  private pathFor(key: string): string {
+    const path = isSafeKey(key) ? this.safePath(key) : null;
+    if (!path) throw new Error(`Unsafe storage key: ${key}`);
+    return path;
+  }
+
+  /** Defense in depth: never touch anything outside the storage root. */
+  private safePath(key: string): string | null {
     const path = resolve(this.root, key);
-    // Defense in depth: never serve anything outside the storage root.
     return path.startsWith(this.root + sep) ? path : null;
   }
 

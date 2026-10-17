@@ -206,7 +206,7 @@ describe('closet', () => {
     api.update.mockResolvedValue({ ...ITEMS[1]!, name: 'Jean droit', color: 'navy' });
 
     await renderRouter('./app', { initialUrl: '/closet/a2/edit' });
-    const name = await screen.findByTestId('edit-item-name');
+    const name = await screen.findByTestId('item-name');
     expect(name.props.value).toBe('Jean brut');
 
     await fireEvent.changeText(name, 'Jean droit');

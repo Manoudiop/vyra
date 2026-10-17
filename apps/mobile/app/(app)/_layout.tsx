@@ -19,6 +19,7 @@ export default function AppLayout() {
       <Stack.Protected guard={onboarded}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="edit-profile" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="closet/add" options={{ presentation: 'modal' }} />
         <Stack.Screen name="closet/[id]/index" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="closet/[id]/edit" options={{ presentation: 'modal' }} />
       </Stack.Protected>

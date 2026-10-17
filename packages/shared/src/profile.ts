@@ -130,3 +130,35 @@ export const profileSchema = z.object({
   preferredOccasions: z.array(occasionSchema),
 });
 export type Profile = z.infer<typeof profileSchema>;
+
+function hexToRgb(hex: string): [number, number, number] | null {
+  const match = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!match) return null;
+  const value = Number.parseInt(match[1]!, 16);
+  return [(value >> 16) & 0xff, (value >> 8) & 0xff, value & 0xff];
+}
+
+/**
+ * Closest vocabulary color to a hex value, using a perceptually weighted RGB
+ * distance ("redmean"), good enough to pre-select a color from a photo.
+ */
+export function nearestStyleColor(hex: string): StyleColor | null {
+  const target = hexToRgb(hex);
+  if (!target) return null;
+  let best: StyleColor | null = null;
+  let bestDistance = Number.POSITIVE_INFINITY;
+  for (const name of STYLE_COLOR_NAMES) {
+    const [r, g, b] = hexToRgb(STYLE_COLORS[name])!;
+    const meanRed = (target[0] + r) / 2;
+    const dr = target[0] - r;
+    const dg = target[1] - g;
+    const db = target[2] - b;
+    const distance =
+      (2 + meanRed / 256) * dr * dr + 4 * dg * dg + (2 + (255 - meanRed) / 256) * db * db;
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      best = name;
+    }
+  }
+  return best;
+}

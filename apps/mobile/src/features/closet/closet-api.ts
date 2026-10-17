@@ -4,7 +4,10 @@ import {
   type ClothingCategory,
   type ClothingItem,
   type ClothingItemDetail,
+  type CreateClothingItemInput,
+  type DeleteUploadedImageInput,
   type UpdateClothingItemInput,
+  type UploadedImage,
 } from '@vyra/shared';
 import { authorizedRequest } from '@/lib/authorized-request';
 
@@ -40,4 +43,11 @@ export const closetApi = {
   update: (id: string, body: UpdateClothingItemInput) =>
     authorizedRequest<ClothingItem>(`/closet/${id}`, { method: 'PATCH', body }),
   remove: (id: string) => authorizedRequest<void>(`/closet/${id}`, { method: 'DELETE' }),
+  create: (body: CreateClothingItemInput) =>
+    authorizedRequest<ClothingItem>('/closet', { method: 'POST', body }),
+  uploadImage: (form: FormData) =>
+    authorizedRequest<UploadedImage>('/storage/images', { method: 'POST', body: form }),
+  /** Best-effort cleanup of a photo the user uploaded but did not save. */
+  discardImage: (body: DeleteUploadedImageInput) =>
+    authorizedRequest<void>('/storage/images', { method: 'DELETE', body }),
 };

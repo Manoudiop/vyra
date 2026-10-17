@@ -3,5 +3,6 @@ export * from './catalog';
 export * from './closet';
 export * from './errors';
 export * from './health';
+export * from './images';
 export * from './plans';
 export * from './profile';

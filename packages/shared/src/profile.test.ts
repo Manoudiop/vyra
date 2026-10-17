@@ -59,3 +59,14 @@ describe('profile update schema', () => {
     expect(updateProfileSchema.safeParse({}).success).toBe(false);
   });
 });
+
+describe('nearestStyleColor', () => {
+  it('maps photo colors onto the shared vocabulary', async () => {
+    const { nearestStyleColor } = await import('./profile');
+    expect(nearestStyleColor('#B5573B')).toBe('terracotta');
+    expect(nearestStyleColor('#0a0a0a')).toBe('black');
+    expect(nearestStyleColor('#FAFAF7')).toBe('white');
+    expect(nearestStyleColor('#22305a')).toBe('navy');
+    expect(nearestStyleColor('nope')).toBeNull();
+  });
+});

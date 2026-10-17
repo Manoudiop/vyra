@@ -1,7 +1,7 @@
 # VYRA — Plan d'implémentation MVP
 
 > "Ton dressing. Ton style. Ton IA."
-> Statut : Phases 1–6 terminées (2026-10-17). Prochaine : Phase 7 (upload d'images + stockage S3).
+> Statut : Phases 1–7 terminées (2026-10-17). Prochaine : Phase 8 (analyse IA des vêtements, provider mock).
 >
 > Écarts vs plan, décidés en cours de route :
 >
@@ -13,6 +13,7 @@
 > - **Phase 4** : styles en `StyleSheet` + tokens typés (pas de NativeWind, comme prévu). Les onglets Dressing, Agenda et Styliste sont des écrans d'attente soignés en attendant leurs phases ; les lignes du Profil (préférences, abonnement…) sont visibles mais inactives. `Tabs` est importé depuis `expo-router/js-tabs` (l'import racine est déprécié en SDK 57).
 > - **Phase 5** : l'onboarding est un seul écran à étapes animées (pas 8 routes) ; brouillon en mémoire uniquement (pas de persistance disque : il se refait en une minute). Le « genre » est un choix de vestiaire (Femme / Homme / Les deux), pas une identité. Limites : 1–4 styles, 1–6 couleurs, 1–5 occasions (« Surprends-moi » exclu des préférences).
 > - **Phase 6** : la lecture du stockage (URLs signées + adaptateur local) a été avancée depuis la phase 7, sinon la grille n'aurait rien à afficher ; l'upload, la suppression d'objets et l'adaptateur S3 restent en phase 7. La limite FREE de 30 pièces est déjà appliquée à la création. Les couleurs du seed ont été ramenées au vocabulaire partagé (`STYLE_COLORS`), désormais imposé par l'API.
+> - **Phase 7** : détection du format par libvips/`sharp` (en-têtes binaires + décodage complet) plutôt que `file-type` (paquet ESM-only, incompatible avec la build CJS de l'API) ; le HEIC iPhone est converti en JPEG sur le téléphone avant l'envoi. URLs signées alignées sur des fenêtres d'une heure (identiques pendant l'heure → cache image côté app). Le vocabulaire de couleurs n'a pas de « bordeaux » : une pièce bordeaux est suggérée « marron » ; à revoir avec l'analyse IA (phase 8).
 > - `OutfitItem → ClothingItem` est en `ON DELETE CASCADE` : Postgres refusait la suppression en cascade d'un utilisateur avec `RESTRICT`/`NO ACTION`. Sans risque pour l'historique, car l'app n'efface jamais un vêtement en dur (archivage via `archivedAt`).
 
 ## 0. État du repository

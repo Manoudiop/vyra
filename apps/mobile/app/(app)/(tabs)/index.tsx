@@ -33,7 +33,7 @@ export default function HomeScreen() {
   });
 
   const quickActions: { key: string; label: string; icon: LucideIcon; onPress: () => void }[] = [
-    { key: 'add', label: t('home.addItem'), icon: Plus, onPress: () => router.navigate('/closet') },
+    { key: 'add', label: t('home.addItem'), icon: Plus, onPress: () => router.push('/closet/add') },
     {
       key: 'style',
       label: t('home.styleMe'),

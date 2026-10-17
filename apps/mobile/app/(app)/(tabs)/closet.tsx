@@ -6,7 +6,6 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, RefreshControl, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { FormBanner } from '@/features/auth/components';
 import {
   CategoryFilters,
   ClosetGridSkeleton,
@@ -23,7 +22,6 @@ export default function ClosetScreen() {
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState<ClothingCategory | null>(null);
   const [favorite, setFavorite] = useState(false);
-  const [showAddNotice, setShowAddNotice] = useState(false);
   const debouncedSearch = useDebouncedValue(search);
 
   const filters = useMemo(
@@ -59,17 +57,11 @@ export default function ClosetScreen() {
           <IconButton
             icon={Plus}
             accessibilityLabel={t('closet.emptyCta')}
-            onPress={() => setShowAddNotice(true)}
+            onPress={() => router.push('/closet/add')}
             testID="closet-add"
           />
         }
       />
-      {/* The photo + AI add flow lands in phases 7–8. */}
-      {showAddNotice && (
-        <View style={styles.notice}>
-          <FormBanner tone="success" message={t('closet.addComingSoon')} />
-        </View>
-      )}
       {(total ?? 0) > 0 && (
         <>
           <SearchField value={search} onChange={setSearch} />
@@ -113,7 +105,7 @@ export default function ClosetScreen() {
         title={t('closet.emptyTitle')}
         body={t('closet.emptyBody')}
         actionLabel={t('closet.emptyCta')}
-        onAction={() => setShowAddNotice(true)}
+        onAction={() => router.push('/closet/add')}
       />
     );
   };
@@ -168,6 +160,5 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: spacing.xl - (spacing.xs + 2), paddingBottom: spacing.xxxl },
   // Grid cells carry their own 6pt padding; the header re-adds it to align with the 24pt gutter.
   header: { paddingHorizontal: spacing.xs + 2 },
-  notice: { marginBottom: spacing.lg },
   footerSpinner: { marginVertical: spacing.xl },
 });

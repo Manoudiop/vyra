@@ -3,6 +3,7 @@ import { Crown, Hourglass } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
+import { SeeOffers } from '@/features/subscriptions/SeeOffers';
 import { Card, colors, colorsAlpha, radii, Skeleton, spacing, Text } from '@/ui';
 import { useResetDate, useUsage } from './use-usage';
 
@@ -40,6 +41,14 @@ export function GenerationsUsedUp({ details }: { details: UsageLimitDetails }) {
                 period: t(`usage.per.${next.period}`),
               })}
             </Text>
+          )}
+          {details.suggestedPlan && (
+            <View style={styles.offers}>
+              <SeeOffers
+                reason="generations"
+                plan={details.suggestedPlan === 'PREMIUM' ? 'PREMIUM' : 'PRO'}
+              />
+            </View>
           )}
         </View>
       </Card>
@@ -129,6 +138,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  offers: { alignItems: 'flex-start', marginLeft: -spacing.md },
   usedUp: { flexDirection: 'row', gap: spacing.md, alignItems: 'flex-start' },
   plan: { gap: spacing.lg },
   planHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },

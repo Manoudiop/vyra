@@ -26,6 +26,8 @@ export default function AppLayout() {
         <Stack.Screen name="saved-outfits" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="wear-history" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="style-profile" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="subscription" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="paywall" options={{ presentation: 'modal' }} />
         <Stack.Screen name="plan-day/[date]" options={{ presentation: 'modal' }} />
         <Stack.Screen name="plan-outfit/[id]" options={{ presentation: 'modal' }} />
       </Stack.Protected>

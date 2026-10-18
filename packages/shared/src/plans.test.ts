@@ -26,3 +26,12 @@ describe('plan definitions', () => {
     expect(suggestUpgrade('PREMIUM', 'OUTFIT_GENERATION')).toBeNull();
   });
 });
+
+describe('formatXof', () => {
+  it('groups thousands with a space', async () => {
+    const { formatXof } = await import('./subscriptions');
+    expect(formatXof(2500)).toBe('2 500 FCFA');
+    expect(formatXof(0)).toBe('0 FCFA');
+    expect(formatXof(1250000)).toBe('1 250 000 FCFA');
+  });
+});

@@ -24,6 +24,7 @@ import Animated, { FadeIn } from 'react-native-reanimated';
 import { FormBanner } from '@/features/auth/components';
 import { useCalendarMonth, useDayFormat, useUnplanDay } from '@/features/calendar/hooks';
 import { OutfitRow } from '@/features/calendar/OutfitRow';
+import { SeeOffers } from '@/features/subscriptions/SeeOffers';
 import { errorMessage } from '@/lib/errors';
 import {
   Button,
@@ -351,6 +352,9 @@ function DayPanel({
             <Text variant="footnote" color="secondary">
               {t('calendar.lockedBody')}
             </Text>
+            <View style={styles.offers}>
+              <SeeOffers reason="calendar" />
+            </View>
           </View>
         </Card>
       ) : loading ? (
@@ -503,6 +507,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   flex: { flex: 1, gap: 2 },
+  offers: { alignItems: 'flex-start', marginLeft: -spacing.md },
   planned: { gap: spacing.md },
   plannedActions: { flexDirection: 'row', gap: spacing.sm },
   wornBlock: { gap: spacing.sm },

@@ -131,7 +131,12 @@ export default function ProfileScreen() {
           onPress={() => router.push('/saved-outfits')}
         />
         <View style={styles.divider} />
-        <Row icon={Crown} label={t('profile.subscription')} />
+        <Row
+          testID="profile-subscription"
+          icon={Crown}
+          label={t('profile.subscription')}
+          onPress={() => router.push('/subscription')}
+        />
         <View style={styles.divider} />
         <Row icon={Bell} label={t('profile.notifications')} />
         <View style={styles.divider} />

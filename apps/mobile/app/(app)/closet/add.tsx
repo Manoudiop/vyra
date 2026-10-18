@@ -34,6 +34,7 @@ import { pickPhoto, type PhotoSource, preparePhoto, toUploadForm } from '@/featu
 import { ApiError } from '@/lib/api-client';
 import { errorMessage } from '@/lib/errors';
 import { goBackOr } from '@/lib/navigation';
+import { SeeOffers } from '@/features/subscriptions/SeeOffers';
 import { usageKeys } from '@/features/usage/usage-api';
 import { limitOf, useResetDate } from '@/features/usage/use-usage';
 import {
@@ -352,7 +353,10 @@ export default function AddClothingItemScreen() {
             </View>
           )}
           {closetFull && (
-            <FormBanner tone="error" message={t('addItem.limitReached', { limit: limit ?? 0 })} />
+            <>
+              <FormBanner tone="error" message={t('addItem.limitReached', { limit: limit ?? 0 })} />
+              <SeeOffers reason="closet" />
+            </>
           )}
           <Button
             testID="add-camera"

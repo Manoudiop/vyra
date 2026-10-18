@@ -10,4 +10,5 @@ export * from './outfits';
 export * from './plans';
 export * from './profile';
 export * from './style-profile';
+export * from './subscriptions';
 export * from './weather';

@@ -382,6 +382,63 @@ export const fr = {
     PRO: 'VYRA Pro',
     PREMIUM: 'VYRA Premium',
   },
+  subscription: {
+    title: 'Abonnement',
+    paywallTitle: 'Plus de looks, plus de liberté',
+    reasons: {
+      generations:
+        'Tes looks de la période sont utilisés. Une offre supérieure t’en donne chaque jour.',
+      analyses: 'Tes analyses IA du mois sont utilisées.',
+      calendar:
+        'L’agenda gratuit couvre la semaine en cours. Planifie tous tes mois avec VYRA Pro.',
+      history: 'Retrouve tout ton historique de looks portés, pas seulement la dernière semaine.',
+      style: 'L’analyse IA de ton style est incluse dans VYRA Premium.',
+      closet: 'Ton dressing gratuit est plein. Passe à un dressing illimité.',
+    },
+    perMonth: 'par mois',
+    currentPlan: 'Ton offre actuelle',
+    highlights: {
+      OUTFIT_GENERATION_one: '{{count}} look généré {{period}}',
+      OUTFIT_GENERATION_other: '{{count}} looks générés {{period}}',
+      OUTFIT_GENERATION_unlimited: 'Looks illimités',
+      CLOTHING_ANALYSIS_one: '{{count}} analyse IA de vêtement {{period}}',
+      CLOTHING_ANALYSIS_other: '{{count}} analyses IA de vêtements {{period}}',
+      CLOTHING_ANALYSIS_unlimited: 'Analyses IA de vêtements illimitées',
+      closet: 'Dressing jusqu’à {{count}} pièces',
+      closetUnlimited: 'Dressing illimité',
+      calendarWeek: 'Agenda de la semaine en cours',
+    },
+    features: {
+      WEATHER: 'Looks adaptés à la météo',
+      CALENDAR_FULL: 'Agenda complet et historique de port',
+      STYLE_ANALYSIS: 'Analyse IA de ton style',
+    },
+    noCommitment:
+      'Sans engagement. Résiliable à tout moment depuis ton profil : tu gardes ton offre jusqu’à la fin du mois payé.',
+    demoNotice: 'Mode démo : le paiement est simulé, aucun montant n’est débité.',
+    continueWith: 'Continuer avec {{plan}} · {{price}} / mois',
+    confirmTitle: 'Récapitulatif',
+    confirmSummary:
+      '{{plan}} : {{price}} par mois, renouvelé automatiquement chaque mois (prochain renouvellement le {{date}}).',
+    cancelAnytime: 'Tu peux résilier à tout moment depuis Profil → Abonnement.',
+    confirmAndPay: 'Confirmer · {{price}} / mois',
+    welcome: 'Bienvenue dans {{plan}}',
+    letsGo: 'C’est parti',
+    freeLine: 'Offre gratuite',
+    priceLine: '{{price}} par mois',
+    renewsOn: 'Renouvellement le {{date}}.',
+    endsOn: 'Résilié : {{plan}} reste actif jusqu’au {{date}}, puis retour à l’offre gratuite.',
+    discover: 'Découvrir les offres',
+    change: 'Changer d’offre',
+    cancel: 'Résilier l’abonnement',
+    cancelTitle: 'Résilier l’abonnement ?',
+    cancelExplain:
+      'Tu gardes {{plan}} jusqu’au {{date}}. Ensuite, tu repasses à l’offre gratuite et aucun autre paiement n’est prélevé. Tes looks, ton dressing et ton agenda sont conservés.',
+    keep: 'Garder mon offre',
+    confirmCancel: 'Résilier',
+    resume: 'Réactiver {{plan}}',
+    seeOffers: 'Voir les offres',
+  },
   usage: {
     yourPlan: 'Ton offre',
     metrics: {

@@ -8,6 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { calendarApi, calendarKeys } from '@/features/calendar/calendar-api';
 import { useDayFormat } from '@/features/calendar/hooks';
 import { OutfitRow } from '@/features/calendar/OutfitRow';
+import { SeeOffers } from '@/features/subscriptions/SeeOffers';
 import { errorMessage } from '@/lib/errors';
 import { goBackOr } from '@/lib/navigation';
 import {
@@ -101,9 +102,14 @@ export default function WearHistoryScreen() {
               <View style={styles.lockIcon}>
                 <Lock size={16} color={colors.accent} />
               </View>
-              <Text variant="footnote" color="secondary" style={styles.flex}>
-                {t('wearHistory.limited')}
-              </Text>
+              <View style={styles.flex}>
+                <Text variant="footnote" color="secondary">
+                  {t('wearHistory.limited')}
+                </Text>
+                <View style={styles.offers}>
+                  <SeeOffers reason="history" />
+                </View>
+              </View>
             </Card>
           ) : null
         }
@@ -142,4 +148,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   flex: { flex: 1 },
+  offers: { alignItems: 'flex-start', marginLeft: -spacing.md },
 });

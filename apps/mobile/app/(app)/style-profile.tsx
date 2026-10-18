@@ -14,6 +14,7 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { FormBanner } from '@/features/auth/components';
 import { styleApi, styleKeys } from '@/features/style/style-api';
+import { SeeOffers } from '@/features/subscriptions/SeeOffers';
 import { errorMessage } from '@/lib/errors';
 import { goBackOr } from '@/lib/navigation';
 import {
@@ -247,6 +248,9 @@ function AnalysisCard({
           <Text variant="footnote" color="secondary">
             {t('styleProfile.analysisLocked')}
           </Text>
+          <View style={styles.offers}>
+            <SeeOffers reason="style" plan="PREMIUM" />
+          </View>
         </View>
       </Card>
     );
@@ -415,6 +419,7 @@ const styles = StyleSheet.create({
   content: { gap: spacing.lg, paddingBottom: spacing.xl },
   sections: { gap: spacing.lg },
   flex: { flex: 1 },
+  offers: { alignItems: 'flex-start', marginLeft: -spacing.md },
   iconBubble: {
     width: 36,
     height: 36,

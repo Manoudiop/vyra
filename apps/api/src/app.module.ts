@@ -1,9 +1,10 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD, APP_PIPE } from '@nestjs/core';
-import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { ZodValidationPipe } from 'nestjs-zod';
 import { AiModule } from './ai/ai.module';
 import { AuthModule } from './auth/auth.module';
+import { UserAwareThrottlerGuard } from './auth/guards/user-aware-throttler.guard';
 import { CalendarModule } from './calendar/calendar.module';
 import { ClosetModule } from './closet/closet.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
@@ -45,7 +46,7 @@ import { UsersModule } from './users/users.module';
   providers: [
     { provide: APP_PIPE, useClass: ZodValidationPipe },
     // Order matters: rate limit first, then authentication, then authorization.
-    { provide: APP_GUARD, useClass: ThrottlerGuard },
+    { provide: APP_GUARD, useClass: UserAwareThrottlerGuard },
     { provide: APP_GUARD, useExisting: JwtAuthGuard },
     { provide: APP_GUARD, useExisting: RolesGuard },
   ],

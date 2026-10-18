@@ -5,6 +5,7 @@ import {
   nearestStyleColor,
   STYLE_COLORS,
   type UploadedImage,
+  type UsageLimitDetails,
 } from '@vyra/shared';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
@@ -33,6 +34,8 @@ import { pickPhoto, type PhotoSource, preparePhoto, toUploadForm } from '@/featu
 import { ApiError } from '@/lib/api-client';
 import { errorMessage } from '@/lib/errors';
 import { goBackOr } from '@/lib/navigation';
+import { usageKeys } from '@/features/usage/usage-api';
+import { limitOf, useResetDate } from '@/features/usage/use-usage';
 import {
   Button,
   Card,
@@ -55,6 +58,8 @@ type Phase =
       uploaded: UploadedImage;
       /** null when the analysis failed: the user fills the form by hand. */
       ai: AnalyzeClothingResponse | null;
+      /** Set when the analysis was skipped because the plan's analyses are used up. */
+      aiLimit: UsageLimitDetails | null;
     };
 
 type ConfidenceField = keyof AnalyzeClothingResponse['analysis']['confidence'];
@@ -71,6 +76,7 @@ const EMPTY_FIELDS: ItemFieldsValue = {
 export default function AddClothingItemScreen() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+  const resetDate = useResetDate();
   const summary = useClosetSummary();
   const [phase, setPhase] = useState<Phase>({ name: 'pick' });
   const [fields, setFields] = useState<ItemFieldsValue>(EMPTY_FIELDS);
@@ -104,8 +110,13 @@ export default function AddClothingItemScreen() {
       pendingUpload.current = uploaded;
       setPhase({ name: 'processing', step: 'analyzing', previewUri: picked.photo.uri });
       // The analysis only pre-fills the form: if it fails, the user simply types it in.
-      const ai = await closetApi.analyze(uploaded.imageKey).catch(() => null);
-      return { status: 'uploaded' as const, uploaded, ai, previewUri: picked.photo.uri };
+      let aiLimit: UsageLimitDetails | null = null;
+      const ai = await closetApi.analyze(uploaded.imageKey).catch((error: unknown) => {
+        aiLimit = limitOf(error, 'CLOTHING_ANALYSIS');
+        return null;
+      });
+      void queryClient.invalidateQueries({ queryKey: usageKeys.all });
+      return { status: 'uploaded' as const, uploaded, ai, aiLimit, previewUri: picked.photo.uri };
     },
     onSuccess: (result, source) => {
       if (result.status === 'denied') {
@@ -132,6 +143,7 @@ export default function AddClothingItemScreen() {
         previewUri: result.previewUri,
         uploaded: result.uploaded,
         ai: result.ai,
+        aiLimit: result.aiLimit,
       });
     },
     onError: () => {
@@ -275,6 +287,14 @@ export default function AddClothingItemScreen() {
                   </Text>
                 )}
               </View>
+            ) : phase.aiLimit ? (
+              <Text variant="caption" color="secondary" testID="add-ai-limit">
+                {t('usage.analysesUsedUp', {
+                  count: phase.aiLimit.limit,
+                  period: t(`usage.periodOf.${phase.aiLimit.period}`),
+                  date: resetDate(phase.aiLimit.resetsAt),
+                })}
+              </Text>
             ) : (
               <Text variant="caption" color="secondary" testID="add-ai-unavailable">
                 {t('addItem.aiUnavailable')}

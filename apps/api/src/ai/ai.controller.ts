@@ -5,6 +5,7 @@ import {
   ApiForbiddenResponse,
   ApiOkResponse,
   ApiOperation,
+  ApiPaymentRequiredResponse,
   ApiTags,
 } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
@@ -16,6 +17,7 @@ import {
 import { createZodDto } from 'nestjs-zod';
 import { type AuthenticatedUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/decorators';
+import { UsageService } from '../usage/usage.service';
 import { AiService } from './ai.service';
 
 class AnalyzeClothingRequestDto extends createZodDto(analyzeClothingRequestSchema) {}
@@ -25,7 +27,10 @@ class AnalyzeClothingResponseDto extends createZodDto(analyzeClothingResponseSch
 @ApiBearerAuth()
 @Controller('ai')
 export class AiController {
-  constructor(private readonly ai: AiService) {}
+  constructor(
+    private readonly ai: AiService,
+    private readonly usage: UsageService,
+  ) {}
 
   @Post('analyze-clothing')
   @HttpCode(HttpStatus.OK)
@@ -39,10 +44,14 @@ export class AiController {
   @ApiOkResponse({ type: AnalyzeClothingResponseDto })
   @ApiForbiddenResponse({ description: 'FORBIDDEN — image outside your namespace' })
   @ApiBadGatewayResponse({ description: 'AI_ERROR — provider failure' })
+  @ApiPaymentRequiredResponse({ description: 'LIMIT_REACHED — analyses of the plan used up' })
   analyzeClothing(
     @CurrentUser() user: AuthenticatedUser,
     @Body() body: AnalyzeClothingRequestDto,
   ): Promise<AnalyzeClothingResponse> {
-    return this.ai.analyzeClothing(user.id, body.imageKey);
+    // Counted per plan; a failed analysis is not.
+    return this.usage.meter(user.id, 'CLOTHING_ANALYSIS', () =>
+      this.ai.analyzeClothing(user.id, body.imageKey),
+    );
   }
 }

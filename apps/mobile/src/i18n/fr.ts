@@ -377,6 +377,32 @@ export const fr = {
     replaces: 'Remplacera « {{name}} » prévu ce jour-là.',
     planFor: 'Planifier pour {{date}}',
   },
+  plans: {
+    FREE: 'Gratuit',
+    PRO: 'VYRA Pro',
+    PREMIUM: 'VYRA Premium',
+  },
+  usage: {
+    yourPlan: 'Ton offre',
+    metrics: {
+      OUTFIT_GENERATION: 'Looks générés',
+      CLOTHING_ANALYSIS: 'Analyses de vêtements',
+    },
+    period: { DAY: 'aujourd’hui', WEEK: 'cette semaine', MONTH: 'ce mois-ci' },
+    periodOf: { DAY: 'du jour', WEEK: 'de la semaine', MONTH: 'du mois' },
+    per: { DAY: 'par jour', WEEK: 'par semaine', MONTH: 'par mois' },
+    usedOf: '{{used}} / {{limit}} {{period}}',
+    unlimited: '{{used}} · illimité',
+    resetsOn: 'Renouvellement {{date}}',
+    looksLeft_one: '{{count}} look restant {{period}}',
+    looksLeft_other: '{{count}} looks restants {{period}}',
+    generationsUsedUp_one: 'Ton look {{period}} est utilisé',
+    generationsUsedUp_other: 'Tes {{count}} looks {{period}} sont utilisés',
+    newLooksOn: 'De nouveaux looks arrivent {{date}}.',
+    upgradeHint: 'Avec {{plan}} : {{count}} looks {{period}}.',
+    analysesUsedUp:
+      'Tes {{count}} analyses IA {{period}} sont utilisées (renouvellement {{date}}) : complète la fiche toi-même.',
+  },
   weather: {
     conditions: {
       SUNNY: 'Ensoleillé',

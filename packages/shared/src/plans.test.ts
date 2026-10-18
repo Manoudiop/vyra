@@ -1,12 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  PLAN_DEFINITIONS,
-  getMeteredLimit,
-  getPeriodEnd,
-  getPeriodStart,
-  planHasFeature,
-  suggestUpgrade,
-} from './plans';
+import { PLAN_DEFINITIONS, getMeteredLimit, planHasFeature, suggestUpgrade } from './plans';
 
 describe('plan definitions', () => {
   it('matches the validated MVP limits', () => {
@@ -31,29 +24,5 @@ describe('plan definitions', () => {
     expect(suggestUpgrade('FREE', 'OUTFIT_GENERATION')).toBe('PRO');
     expect(suggestUpgrade('PRO', 'OUTFIT_GENERATION')).toBe('PREMIUM');
     expect(suggestUpgrade('PREMIUM', 'OUTFIT_GENERATION')).toBeNull();
-  });
-});
-
-describe('usage periods (UTC)', () => {
-  // Wednesday 2026-10-14 15:30 UTC
-  const at = new Date('2026-10-14T15:30:00Z');
-
-  it('computes day boundaries', () => {
-    expect(getPeriodStart('DAY', at).toISOString()).toBe('2026-10-14T00:00:00.000Z');
-    expect(getPeriodEnd('DAY', at).toISOString()).toBe('2026-10-15T00:00:00.000Z');
-  });
-
-  it('starts weeks on Monday', () => {
-    expect(getPeriodStart('WEEK', at).toISOString()).toBe('2026-10-12T00:00:00.000Z');
-    expect(getPeriodEnd('WEEK', at).toISOString()).toBe('2026-10-19T00:00:00.000Z');
-    // Sunday belongs to the week that started the previous Monday.
-    expect(getPeriodStart('WEEK', new Date('2026-10-18T23:59:00Z')).toISOString()).toBe(
-      '2026-10-12T00:00:00.000Z',
-    );
-  });
-
-  it('computes month boundaries', () => {
-    expect(getPeriodStart('MONTH', at).toISOString()).toBe('2026-10-01T00:00:00.000Z');
-    expect(getPeriodEnd('MONTH', at).toISOString()).toBe('2026-11-01T00:00:00.000Z');
   });
 });

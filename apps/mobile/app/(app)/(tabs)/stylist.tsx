@@ -34,6 +34,8 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { FormBanner } from '@/features/auth/components';
 import { useDayFormat } from '@/features/calendar/hooks';
+import { useMeter, useUsedUp } from '@/features/usage/use-usage';
+import { GenerationsLeft, GenerationsUsedUp } from '@/features/usage/UsageViews';
 import { useWeather } from '@/features/weather/use-weather';
 import { WeatherChip } from '@/features/weather/WeatherCard';
 import { useClosetList } from '@/features/closet/hooks';
@@ -143,6 +145,8 @@ export default function StylistScreen() {
   };
 
   const failure = generate.isError ? failureOf(generate.error) : null;
+  const meter = useMeter('OUTFIT_GENERATION');
+  const usedUp = useUsedUp('OUTFIT_GENERATION', generate.error);
 
   return (
     <View style={styles.root}>
@@ -150,7 +154,8 @@ export default function StylistScreen() {
         testID="stylist-screen"
         footer={
           <View style={styles.footer}>
-            {generate.isError && failure?.reason !== 'INCOMPLETE_CLOSET' && (
+            {usedUp && <GenerationsUsedUp details={usedUp} />}
+            {generate.isError && !usedUp && failure?.reason !== 'INCOMPLETE_CLOSET' && (
               <FormBanner
                 tone="error"
                 message={
@@ -168,9 +173,10 @@ export default function StylistScreen() {
               icon={Sparkles}
               variant="accent"
               onPress={submit}
-              disabled={!occasion || !style}
+              disabled={!occasion || !style || !!usedUp}
               loading={generate.isPending}
             />
+            {meter && !usedUp && <GenerationsLeft meter={meter} />}
           </View>
         }
       >

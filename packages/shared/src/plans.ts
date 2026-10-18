@@ -101,23 +101,38 @@ export function suggestUpgrade(plan: Plan, metric: UsageMetric): Plan | null {
   return higher ?? null;
 }
 
-/** Start of the usage period containing `at`, in UTC. Weeks start on Monday. */
-export function getPeriodStart(period: UsagePeriod, at: Date = new Date()): Date {
-  const start = new Date(Date.UTC(at.getUTCFullYear(), at.getUTCMonth(), at.getUTCDate()));
-  if (period === 'WEEK') {
-    const daysSinceMonday = (start.getUTCDay() + 6) % 7;
-    start.setUTCDate(start.getUTCDate() - daysSinceMonday);
-  } else if (period === 'MONTH') {
-    start.setUTCDate(1);
-  }
-  return start;
-}
+// Usage windows (day / Monday week / month) are computed in the user's
+// timezone by the API (apps/api/src/usage/usage-period.ts).
 
-/** Start of the next period, i.e. when the counter resets. */
-export function getPeriodEnd(period: UsagePeriod, at: Date = new Date()): Date {
-  const end = getPeriodStart(period, at);
-  if (period === 'DAY') end.setUTCDate(end.getUTCDate() + 1);
-  else if (period === 'WEEK') end.setUTCDate(end.getUTCDate() + 7);
-  else end.setUTCMonth(end.getUTCMonth() + 1);
-  return end;
-}
+export const usagePeriodSchema = z.enum(['DAY', 'WEEK', 'MONTH']);
+
+/** One metered feature for the current period, in the user's timezone. */
+export const usageMeterSchema = z.object({
+  metric: usageMetricSchema,
+  used: z.number().int().nonnegative(),
+  /** `null` = unlimited. */
+  limit: z.number().int().positive().nullable(),
+  remaining: z.number().int().nonnegative().nullable(),
+  period: usagePeriodSchema,
+  /** When the counter goes back to zero. */
+  resetsAt: z.string(),
+});
+export type UsageMeter = z.infer<typeof usageMeterSchema>;
+
+export const usageResponseSchema = z.object({
+  plan: planSchema,
+  meters: z.array(usageMeterSchema),
+});
+export type UsageResponse = z.infer<typeof usageResponseSchema>;
+
+/** `details` of a 402 LIMIT_REACHED on a metered feature. */
+export const usageLimitDetailsSchema = z.object({
+  metric: usageMetricSchema,
+  limit: z.number().int(),
+  used: z.number().int(),
+  period: usagePeriodSchema,
+  resetsAt: z.string(),
+  currentPlan: planSchema,
+  suggestedPlan: planSchema.nullable(),
+});
+export type UsageLimitDetails = z.infer<typeof usageLimitDetailsSchema>;

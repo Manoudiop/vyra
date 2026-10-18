@@ -378,6 +378,32 @@ export const en: TranslationResources = {
     replaces: 'Will replace “{{name}}” planned that day.',
     planFor: 'Plan for {{date}}',
   },
+  plans: {
+    FREE: 'Free',
+    PRO: 'VYRA Pro',
+    PREMIUM: 'VYRA Premium',
+  },
+  usage: {
+    yourPlan: 'Your plan',
+    metrics: {
+      OUTFIT_GENERATION: 'Looks generated',
+      CLOTHING_ANALYSIS: 'Clothing analyses',
+    },
+    period: { DAY: 'today', WEEK: 'this week', MONTH: 'this month' },
+    periodOf: { DAY: 'for today', WEEK: 'for the week', MONTH: 'for the month' },
+    per: { DAY: 'per day', WEEK: 'per week', MONTH: 'per month' },
+    usedOf: '{{used}} / {{limit}} {{period}}',
+    unlimited: '{{used}} · unlimited',
+    resetsOn: 'Renews {{date}}',
+    looksLeft_one: '{{count}} look left {{period}}',
+    looksLeft_other: '{{count}} looks left {{period}}',
+    generationsUsedUp_one: 'Your look {{period}} is used',
+    generationsUsedUp_other: 'Your {{count}} looks {{period}} are used',
+    newLooksOn: 'New looks arrive {{date}}.',
+    upgradeHint: 'With {{plan}}: {{count}} looks {{period}}.',
+    analysesUsedUp:
+      'Your {{count}} AI analyses {{period}} are used (renews {{date}}): fill in the details yourself.',
+  },
   weather: {
     conditions: {
       SUNNY: 'Sunny',

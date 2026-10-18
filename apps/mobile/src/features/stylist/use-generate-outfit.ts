@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { type GenerateOutfitRequest } from '@vyra/shared';
 import { haptics } from '@/ui';
+import { usageKeys } from '@/features/usage/usage-api';
 import { outfitKeys, stylistApi } from './stylist-api';
 
 /** The generation moment should be felt, not flashed: show the overlay at least this long. */
@@ -20,5 +21,7 @@ export function useGenerateOutfit() {
       queryClient.setQueryData(outfitKeys.detail(outfit.id), outfit);
     },
     onError: () => haptics.error(),
+    // Success or refusal, the counters may have moved.
+    onSettled: () => void queryClient.invalidateQueries({ queryKey: usageKeys.all }),
   });
 }

@@ -211,6 +211,27 @@ describe('add a closet item', () => {
     expect(screen.getByTestId('add-save')).toBeDisabled();
   });
 
+  it('says when the plan’s analyses are used up, and when they come back', async () => {
+    api.uploadImage.mockResolvedValue(UPLOADED);
+    api.analyze.mockRejectedValue(
+      new ApiError('LIMIT_REACHED', 'used up', 402, {
+        metric: 'CLOTHING_ANALYSIS',
+        limit: 30,
+        used: 30,
+        period: 'MONTH',
+        resetsAt: '2026-11-01T00:00:00.000Z',
+        currentPlan: 'FREE',
+        suggestedPlan: 'PRO',
+      }),
+    );
+    await renderRouter('./app', { initialUrl: '/closet/add' });
+    await fireEvent.press(await screen.findByTestId('add-library'));
+    expect(await screen.findByTestId('add-ai-limit')).toHaveTextContent(
+      /Tes 30 analyses IA du mois sont utilisées \(renouvellement dimanche 1 novembre\)/,
+    );
+    expect(screen.queryByTestId('add-ai-unavailable')).toBeNull();
+  });
+
   it('cleans up the uploaded photo when the user leaves without saving', async () => {
     api.uploadImage.mockResolvedValue(UPLOADED);
     await renderRouter('./app', { initialUrl: '/closet/add' });

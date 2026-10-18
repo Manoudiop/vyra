@@ -6,13 +6,14 @@
  *   pnpm db:seed
  */
 import { PrismaPg } from '@prisma/adapter-pg';
-import { getMeteredLimit, getPeriodStart } from '@vyra/shared';
+import { getMeteredLimit } from '@vyra/shared';
 import { config as loadEnv } from 'dotenv';
 import { hashPassword } from '../../src/common/security/password';
 import { PrismaClient } from '../../src/generated/prisma/client';
 import { LocalStorageAdapter } from '../../src/storage/local-storage.adapter';
 import { S3StorageAdapter } from '../../src/storage/s3-storage.adapter';
 import { type StorageService } from '../../src/storage/storage.service';
+import { usageWindow } from '../../src/usage/usage-period';
 import { DEMO_USERS, type DemoUser } from './demo-data';
 import { renderGarment } from './garment-images';
 
@@ -188,8 +189,10 @@ async function seedUser(
   for (const [metric, count] of usage) {
     if (count === 0) continue;
     const { period } = getMeteredLimit(demo.plan, metric);
+    // Same windows as the API: the user's day, Monday week or month.
+    const { start } = usageWindow(period, demo.profile.timezone, now);
     await prisma.usage.create({
-      data: { userId: user.id, metric, periodStart: getPeriodStart(period, now), count },
+      data: { userId: user.id, metric, periodStart: start, count },
     });
   }
 

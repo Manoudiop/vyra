@@ -30,6 +30,8 @@ import { GeneratingOverlay } from '@/features/stylist/GeneratingOverlay';
 import { outfitKeys, stylistApi } from '@/features/stylist/stylist-api';
 import { useGenerateOutfit } from '@/features/stylist/use-generate-outfit';
 import { useOutfitAction } from '@/features/stylist/use-outfit-actions';
+import { limitOf } from '@/features/usage/use-usage';
+import { GenerationsUsedUp } from '@/features/usage/UsageViews';
 import { WeatherChip } from '@/features/weather/WeatherCard';
 import { errorMessage } from '@/lib/errors';
 import { goBackOr } from '@/lib/navigation';
@@ -118,11 +120,12 @@ export default function OutfitScreen() {
     );
   };
 
+  const anotherUsedUp = limitOf(another.error, 'OUTFIT_GENERATION');
   const errorText = action.isError
     ? errorMessage(action.error, t)
     : planDay.isError
       ? errorMessage(planDay.error, t, { LIMIT_REACHED: t('calendar.lockedBody') })
-      : another.isError
+      : another.isError && !anotherUsedUp
         ? errorMessage(another.error, t)
         : null;
   const planForLabel = planFor
@@ -143,6 +146,7 @@ export default function OutfitScreen() {
         footer={
           <View style={styles.footer}>
             {errorText && <FormBanner tone="error" message={errorText} />}
+            {anotherUsedUp && <GenerationsUsedUp details={anotherUsedUp} />}
             {planFor && planForLabel ? (
               <Button
                 testID="outfit-plan-for"

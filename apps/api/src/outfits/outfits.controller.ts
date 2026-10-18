@@ -17,6 +17,7 @@ import {
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
+  ApiPaymentRequiredResponse,
   ApiTags,
   ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
@@ -37,6 +38,7 @@ import { createZodDto } from 'nestjs-zod';
 import { type AuthenticatedUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/decorators';
 import { AppException } from '../common/errors/app.exception';
+import { UsageService } from '../usage/usage.service';
 import { OutfitsService } from './outfits.service';
 
 class GenerateOutfitRequestDto extends createZodDto(generateOutfitRequestSchema) {}
@@ -56,7 +58,10 @@ const uuid = new ParseUUIDPipe({
 @ApiBearerAuth()
 @Controller('ai')
 export class StylistController {
-  constructor(private readonly outfits: OutfitsService) {}
+  constructor(
+    private readonly outfits: OutfitsService,
+    private readonly usage: UsageService,
+  ) {}
 
   @Post('generate-outfit')
   @HttpCode(HttpStatus.OK)
@@ -72,11 +77,17 @@ export class StylistController {
     description:
       'VALIDATION_ERROR — INCOMPLETE_CLOSET (with missing pieces), NO_MATCH or REQUIRED_ITEM_UNAVAILABLE',
   })
+  @ApiPaymentRequiredResponse({
+    description: 'LIMIT_REACHED — generations of the plan used up (details: limit, used, resetsAt)',
+  })
   generate(
     @CurrentUser() user: AuthenticatedUser,
     @Body() body: GenerateOutfitRequestDto,
   ): Promise<GenerateOutfitResponse> {
-    return this.outfits.generate(user.id, body);
+    // Counted per plan; a failed generation (e.g. incomplete closet) is not.
+    return this.usage.meter(user.id, 'OUTFIT_GENERATION', () =>
+      this.outfits.generate(user.id, body),
+    );
   }
 }
 

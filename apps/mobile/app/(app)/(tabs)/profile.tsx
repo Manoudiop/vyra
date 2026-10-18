@@ -14,6 +14,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, Platform, StyleSheet, View } from 'react-native';
 import { useSession } from '@/features/auth/session-store';
+import { PlanUsageCard } from '@/features/usage/UsageViews';
 import {
   Button,
   Card,
@@ -104,6 +105,10 @@ export default function ProfileScreen() {
         </View>
       </Card>
 
+      <View style={styles.plan}>
+        <PlanUsageCard />
+      </View>
+
       <Card padded={false} style={styles.list}>
         <Row
           testID="profile-my-style"
@@ -146,6 +151,7 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
+  plan: { marginBottom: spacing.lg },
   identity: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -6,6 +6,8 @@ import { defineConfig } from 'prisma/config';
 loadEnv({ path: ['.env', '../../.env'], quiet: true });
 
 const databaseUrl = process.env.DATABASE_URL;
+// Throwaway database Prisma resets to replay migrations (CI drift check).
+const shadowDatabaseUrl = process.env.SHADOW_DATABASE_URL;
 
 export default defineConfig({
   schema: 'prisma/schema.prisma',
@@ -15,5 +17,7 @@ export default defineConfig({
   },
   // Optional so `prisma generate` (run on postinstall) works on a fresh clone
   // before .env exists; commands that touch the database still require it.
-  ...(databaseUrl ? { datasource: { url: databaseUrl } } : {}),
+  ...(databaseUrl
+    ? { datasource: { url: databaseUrl, ...(shadowDatabaseUrl ? { shadowDatabaseUrl } : {}) } }
+    : {}),
 });

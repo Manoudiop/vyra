@@ -7,25 +7,28 @@ Plan d'implémentation et décisions : [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEM
 
 ## Statut
 
-| Phase   | Contenu                                                                   | État    |
-| ------- | ------------------------------------------------------------------------- | ------- |
-| 1       | Monorepo, configuration, squelettes API / mobile / admin                  | ✅      |
-| 2       | PostgreSQL, schéma Prisma, migrations, seed de démo                       | ✅      |
-| 3       | Authentification API (JWT, refresh rotatif, reset par code, guards)       | ✅      |
-| 4       | Design system, navigation 5 onglets, écrans d'auth, routes protégées      | ✅      |
-| 5       | Onboarding en 8 étapes, profil et préférences de style éditables          | ✅      |
-| 6       | Dressing : grille, recherche, filtres, détail, édition, suppression       | ✅      |
-| 7       | Upload photo sécurisé, stockage local/S3 (MinIO), écran d'ajout           | ✅      |
-| 8       | Analyse IA des vêtements (provider mock) et pré-remplissage de l'ajout    | ✅      |
-| 9       | Styliste IA : moteur de candidats, génération, écran look                 | ✅      |
-| 10      | Détail look : enregistrer, porter aujourd'hui, avis, looks enregistrés    | ✅      |
-| 11      | Agenda mensuel, planification, historique de port, anti-répétition        | ✅      |
-| 12      | Apprentissage du style, écran « Mon style », analyse IA (PREMIUM)         | ✅      |
-| 13      | Météo : WeatherService (mock / Open-Meteo), accueil, moteur, explications | ✅      |
-| 14      | Limites d'usage : comptage par offre, compteurs, blocage propre           | ✅      |
-| 15      | Abonnements FCFA, BillingProvider mock, paywall, gestion depuis le profil | ✅      |
-| 16      | Analytics : 11 événements, provider mock, vie privée, métriques admin     | ✅      |
-| 17 → 18 | Tests complémentaires, admin et finitions                                 | à venir |
+| Phase | Contenu                                                                        | État    |
+| ----- | ------------------------------------------------------------------------------ | ------- |
+| 1     | Monorepo, configuration, squelettes API / mobile / admin                       | ✅      |
+| 2     | PostgreSQL, schéma Prisma, migrations, seed de démo                            | ✅      |
+| 3     | Authentification API (JWT, refresh rotatif, reset par code, guards)            | ✅      |
+| 4     | Design system, navigation 5 onglets, écrans d'auth, routes protégées           | ✅      |
+| 5     | Onboarding en 8 étapes, profil et préférences de style éditables               | ✅      |
+| 6     | Dressing : grille, recherche, filtres, détail, édition, suppression            | ✅      |
+| 7     | Upload photo sécurisé, stockage local/S3 (MinIO), écran d'ajout                | ✅      |
+| 8     | Analyse IA des vêtements (provider mock) et pré-remplissage de l'ajout         | ✅      |
+| 9     | Styliste IA : moteur de candidats, génération, écran look                      | ✅      |
+| 10    | Détail look : enregistrer, porter aujourd'hui, avis, looks enregistrés         | ✅      |
+| 11    | Agenda mensuel, planification, historique de port, anti-répétition             | ✅      |
+| 12    | Apprentissage du style, écran « Mon style », analyse IA (PREMIUM)              | ✅      |
+| 13    | Météo : WeatherService (mock / Open-Meteo), accueil, moteur, explications      | ✅      |
+| 14    | Limites d'usage : comptage par offre, compteurs, blocage propre                | ✅      |
+| 15    | Abonnements FCFA, BillingProvider mock, paywall, gestion depuis le profil      | ✅      |
+| 16    | Analytics : 11 événements, provider mock, vie privée, métriques admin          | ✅      |
+| 17    | Tests : audit, trous comblés (dont une faille de session), contrat API↔app, CI | ✅      |
+| 18    | Admin et finitions                                                             | à venir |
+
+**Tests et CI** : voir [docs/TESTING.md](docs/TESTING.md) (437 tests, parcours critiques → tests, contrat API ↔ app, workflow GitHub Actions).
 
 ## Structure
 

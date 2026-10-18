@@ -49,6 +49,24 @@ describe('AI stylist (e2e)', () => {
     expect(outfitSchema.parse(stored.body)).toEqual(outfit);
   });
 
+  it('explains when the piece to use is ruled out, or is not yours', async () => {
+    const { user, ids } = await withCloset(MEN_CLOSET);
+    const conflict = await generate(user, {
+      occasion: 'CASUAL',
+      style: 'CASUAL',
+      constraints: { requiredItemId: ids.get('Jean brut'), avoidKinds: ['jeans'] },
+    }).expect(422);
+    expect(conflict.body.error.details).toEqual({ reason: 'REQUIRED_ITEM_UNAVAILABLE' });
+
+    const other = await withCloset(MEN_CLOSET);
+    const foreign = await generate(user, {
+      occasion: 'CASUAL',
+      style: 'CASUAL',
+      constraints: { requiredItemId: other.ids.get('Jean brut') },
+    }).expect(422);
+    expect(foreign.body.error.details).toEqual({ reason: 'REQUIRED_ITEM_UNAVAILABLE' });
+  });
+
   it('dresses a wedding in the traditional piece', async () => {
     const { user } = await withCloset(MEN_CLOSET);
     const res = await generate(user, { occasion: 'WEDDING', style: 'TRADITIONAL' }).expect(200);

@@ -14,7 +14,8 @@ module.exports = {
   globalSetup: '<rootDir>/test/global-setup.ts',
   testRegex: '.*\\.(spec|e2e-spec)\\.ts$',
   transform: {
-    '^.+\\.ts$': ['@swc/jest', { ...swcConfig, swcrc: false }],
+    // Inline source maps: coverage and stack traces point at the TypeScript lines.
+    '^.+\\.ts$': ['@swc/jest', { ...swcConfig, sourceMaps: 'inline', swcrc: false }],
   },
   // The generated Prisma client imports its own TS files with '.js' extensions (ESM style).
   moduleNameMapper: { '^(\\.{1,2}/.*)\\.js$': '$1' },

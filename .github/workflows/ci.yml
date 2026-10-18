@@ -1,0 +1,96 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A newer push on the same branch makes the running check obsolete.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: Format, typecheck, lint, tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: vyra
+          POSTGRES_PASSWORD: vyra_ci_password
+          POSTGRES_DB: vyra
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U vyra -d vyra"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+
+    env:
+      # Throwaway CI credentials for the containers above; no real secret is used.
+      # The API test setup creates this database and applies the migrations.
+      DATABASE_URL: postgresql://vyra:vyra_ci_password@localhost:5432/vyra_test?schema=public
+      # Prisma replays the migrations here to compare them with the schema (drift check).
+      SHADOW_DATABASE_URL: postgresql://vyra:vyra_ci_password@localhost:5432/vyra_shadow
+      S3_TEST_ENDPOINT: http://localhost:9000
+      S3_TEST_ACCESS_KEY_ID: vyra
+      S3_TEST_SECRET_ACCESS_KEY: vyra_ci_password
+      # The S3 integration test fails instead of skipping when MinIO is missing.
+      REQUIRE_MINIO: '1'
+      TURBO_TELEMETRY_DISABLED: '1'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # MinIO needs a command ("server /data"), which service containers cannot pass.
+      - name: Start MinIO
+        run: |
+          docker run -d --name minio -p 9000:9000 \
+            -e MINIO_ROOT_USER=vyra -e MINIO_ROOT_PASSWORD=vyra_ci_password \
+            minio/minio:latest server /data
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:9000/minio/health/live && exit 0
+            sleep 2
+          done
+          echo "MinIO did not start" && docker logs minio && exit 1
+
+      - uses: pnpm/action-setup@v4 # version from package.json "packageManager"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Format
+        run: pnpm format:check
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Tests (shared, API unit + e2e, mobile)
+        run: pnpm test
+
+      - name: Prisma schema and migrations in sync
+        working-directory: apps/api
+        env:
+          PGPASSWORD: vyra_ci_password
+        run: |
+          psql -h localhost -U vyra -d vyra -c 'CREATE DATABASE vyra_shadow'
+          pnpm exec prisma migrate diff \
+            --from-migrations prisma/migrations \
+            --to-schema prisma/schema.prisma \
+            --exit-code

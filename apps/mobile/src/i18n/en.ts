@@ -70,6 +70,7 @@ export const en: TranslationResources = {
       hasAccount: 'Already have an account?',
       login: 'Sign in',
       terms: 'By continuing you accept our terms of use.',
+      emailTaken: 'An account already exists with this email. Sign in or reset your password.',
     },
     forgot: {
       title: 'Forgot password',
@@ -83,6 +84,7 @@ export const en: TranslationResources = {
       resend: 'Resend code',
       resent: 'If an account exists, a new code has been sent.',
       success: 'Password changed. Sign in with your new password.',
+      invalidCode: 'This code is invalid or has expired. Request a new one.',
     },
   },
   occasions: {

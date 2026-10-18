@@ -161,6 +161,35 @@ describe('Subscriptions (e2e)', () => {
     expect(Date.parse(renewed.currentPeriodStart!)).toBeLessThanOrEqual(Date.now());
   });
 
+  it('catches up on several missed months and keeps the billing day', async () => {
+    const { user } = await withCloset(app, prisma, []);
+    const first = await checkout(user, 'PRO');
+    const end = new Date(first.subscription.currentPeriodEnd!);
+    // Three months later, nobody opened the app in between.
+    const shift = 3 * 31 * DAY_MS;
+    await prisma.subscription.update({
+      where: { userId: user.session.user.id },
+      data: {
+        currentPeriodStart: new Date(Date.parse(first.subscription.currentPeriodStart!) - shift),
+        currentPeriodEnd: new Date(end.getTime() - shift),
+      },
+    });
+    const renewed = await me(user);
+    expect(renewed.plan).toBe('PRO');
+    const newEnd = new Date(renewed.currentPeriodEnd!);
+    expect(newEnd.getTime()).toBeGreaterThan(Date.now());
+    expect(newEnd.getTime() - Date.now()).toBeLessThanOrEqual(31 * DAY_MS);
+    expect(Date.parse(renewed.currentPeriodStart!)).toBeLessThanOrEqual(Date.now());
+  });
+
+  it('treats a second cancellation as a no-op', async () => {
+    const { user } = await withCloset(app, prisma, []);
+    await checkout(user, 'PRO');
+    const once = (await user.auth('post', '/api/subscriptions/cancel').expect(200)).body;
+    const twice = (await user.auth('post', '/api/subscriptions/cancel').expect(200)).body;
+    expect(twice).toEqual(once);
+  });
+
   it('explains what cannot be done', async () => {
     const { user } = await withCloset(app, prisma, []);
     expect(

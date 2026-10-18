@@ -40,7 +40,14 @@ export default function ResetPasswordScreen() {
     <Screen keyboard edges={['top', 'bottom']} testID="reset-screen">
       <AuthHeader title={t('auth.reset.title')} subtitle={t('auth.reset.subtitle', { email })} />
       <View style={styles.form}>
-        {reset.isError && <FormBanner tone="error" message={errorMessage(reset.error, t)} />}
+        {reset.isError && (
+          <FormBanner
+            tone="error"
+            message={errorMessage(reset.error, t, {
+              VALIDATION_ERROR: t('auth.reset.invalidCode'),
+            })}
+          />
+        )}
         {resend.isSuccess && !reset.isError && (
           <FormBanner tone="success" message={t('auth.reset.resent')} />
         )}

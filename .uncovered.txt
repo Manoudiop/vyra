@@ -1,0 +1,97 @@
+== ai\ai.service.ts
+  37 if (error instanceof AppException) throw error;
+== ai\mock\clothing-classifier.ts
+  40 export function classifySilhouette(f: SilhouetteFeatures): KindGuess {
+  81 return { kind: 'top', confidence: 0.4 };
+== ai\mock\mock-ai.provider.ts
+  33 if (!best) throw new AppException('AI_ERROR', 'No candidate to choose from');
+  50 return explainOutfit(input);
+== ai\mock\stylist-copy.ts
+ 348 if (outer) finish.push(`${q(outer)} adds structure`);
+ 373 sentences.push(
+== analytics\analytics.service.ts
+  52 this.logger.warn(
+== auth\password-reset.service.ts
+  11 export const RESET_CODE_TTL_MINUTES = 15;
+  12 export const RESET_CODE_MAX_ATTEMPTS = 5;
+  70 if (!user) throw invalidCode();
+== auth\token.service.ts
+  82 if (current.expiresAt <= new Date()) throw invalidSession();
+  90 await this.revokeFamily(current.familyId);
+  91 throw invalidSession();
+ 121 if (typeof payload.sub !== 'string') throw new Error('Missing subject');
+== bootstrap\configure-app.ts
+   9 export const API_PREFIX = 'api';
+== calendar\calendar.service.ts
+ 111 if (!day.worn.some((outfit) => outfit.id === wear.outfit.id)) {
+ 118 days: [...days.values()].sort((a, b) => a.date.localeCompare(b.date)),
+== common\errors\all-exceptions.filter.ts
+  73 if (status >= 500) this.logUnexpected(exception);
+== common\security\password.ts
+  20 return false;
+== config\env.schema.ts
+  20 export const envSchema = z
+ 102 ctx.addIssue({ code: 'custom', path: ['CORS_ORIGINS'], message: 'wildcard not allowed' });
+== mail\mock-mail.provider.ts
+  16 if (this.outbox.length > 100) this.outbox.shift();
+  20 this.logger.warn(`Mail "${message.template}" suppressed: no real mail provider configured`);
+== outfits\outfits.service.ts
+ 523 return new AppException(
+== outfits\engine\candidate-engine.ts
+ 167 else if (item.season === 'AUTUMN') fit -= 0.12;
+ 183 export function isKind(item: EngineItem, kind: AvoidableKind): boolean {
+ 291 export function baseRepeatPenalty(distanceDays: number | undefined): number {
+ 296 export function scoreItem(item: EngineItem, context: EngineContext): number {
+ 303 if (item.isFavorite) score += 0.06;
+ 328 if (accents.length >= 3) return -0.1;
+ 333 return 0.02;
+ 357 if (context.constraints.avoidColors.includes(item.color as never)) return false;
+ 359 if (context.occasion === 'WORKOUT' && isKind(item, 'heels')) return false;
+ 360 if (['WEDDING', 'WORK'].includes(context.occasion) && item.style === 'SPORT') return false;
+ 469 if (candidates.length === 0) return { ok: false, reason: 'NO_MATCH' };
+== prisma\prisma.service.ts
+  22 return false;
+== profiles\profiles.service.ts
+  32 if (!user) throw new AppException('AUTH_REQUIRED', 'Authentication required');
+== storage\local-storage.adapter.ts
+  77 if (!path) throw new Error(`Unsafe storage key: ${key}`);
+== storage\s3-storage.adapter.ts
+  34 logger.error(
+  38 return new AppException('STORAGE_ERROR', 'The file storage is unavailable. Please try again.');
+  72 throw storageError(error);
+  81 throw storageError(error);
+  93 throw storageError(error);
+ 103 if (!object.Body) throw new Error('Empty object body');
+ 106 throw storageError(error);
+ 129 await this.client.send(new CreateBucketCommand({ Bucket: this.settings.bucket }));
+ 134 if (!isSafeKey(key)) throw new Error(`Unsafe storage key: ${key}`);
+== style\learn-style.ts
+  34 export const EMPTY_LEARNED: LearnedStyle = {
+  44 export const HALF_LIFE_DAYS = 60;
+ 131 export const AVOID_ITEM_THRESHOLD = -0.45;
+== style\style-learning.service.ts
+  42 this.logger.warn(
+  60 if (running) return running;
+  71 const next = previous.catch(() => undefined).then(() => this.run(userId));
+== style\style-profile.service.ts
+ 122 [...avoidedIds].sort((a, b) => (learned.items[a] ?? 0) - (learned.items[b] ?? 0)),
+ 220 this.logger.warn(`Empty style analysis from ${this.provider.name}`);
+ 221 throw new AppException('AI_ERROR', 'The style analysis could not be produced. Try again.');
+== subscriptions\subscriptions.service.ts
+  90 return {
+ 128 if (current.cancelAtPeriodEnd) return this.toDto(current);
+ 173 if (!['ACTIVE', 'TRIALING'].includes(row.status)) return row;
+ 190 start = end;
+ 191 end = addMonth(start);
+== usage\usage.service.ts
+  43 this.logger.error(
+ 125 if ((error as { code?: string }).code !== 'P2002') throw error;
+== weather\mock-weather.provider.ts
+  59 if (rain >= 0.75) return roll > 0.6 ? 'STORM' : 'RAIN';
+== weather\open-meteo.provider.ts
+  43 return 'CLOUDY';
+  55 constructor(private readonly fetchFn: Fetch = (input, init) => fetch(input, init)) {
+  63 if (!current || !today) throw new Error('Open-Meteo: incomplete current weather');
+  84 if (!daily || daily.time[index] === undefined) return null;
+== weather\weather.service.ts
+  86 if (this.cache.size > 2000) this.cache.delete(this.cache.keys().next().value!);

@@ -40,7 +40,12 @@ export default function RegisterScreen() {
       <AuthHeader title={t('auth.register.title')} subtitle={t('auth.register.subtitle')} />
 
       <View style={styles.form}>
-        {register.isError && <FormBanner tone="error" message={errorMessage(register.error, t)} />}
+        {register.isError && (
+          <FormBanner
+            tone="error"
+            message={errorMessage(register.error, t, { CONFLICT: t('auth.register.emailTaken') })}
+          />
+        )}
 
         <Controller
           control={control}

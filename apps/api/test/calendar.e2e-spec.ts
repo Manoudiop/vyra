@@ -114,6 +114,13 @@ describe('Calendar and wear history (e2e)', () => {
     const day = view.days.find((entry) => entry.date === localToday);
     expect(day?.worn.map((worn) => worn.id)).toEqual([outfit.id]);
     expect(day?.planned).toBeNull();
+
+    // Two records of the same look that day (e.g. imported history) show once.
+    await prisma.wearHistory.create({
+      data: { userId, outfitId: outfit.id, wornAt: new Date(wornAt.getTime() + 3_600_000) },
+    });
+    const again = await month(user, monthOf(localToday));
+    expect(again.days.find((entry) => entry.date === localToday)?.worn).toHaveLength(1);
   });
 
   it('keeps FREE to the current week', async () => {

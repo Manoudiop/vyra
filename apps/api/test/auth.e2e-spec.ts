@@ -175,6 +175,37 @@ describe('Auth (e2e)', () => {
         .expect(401);
     });
 
+    it('refuses an expired refresh token', async () => {
+      const { session } = await register();
+      await prisma.refreshToken.updateMany({
+        where: { userId: session.user.id },
+        data: { expiresAt: new Date(Date.now() - 1000) },
+      });
+      await http()
+        .post('/api/auth/refresh')
+        .send({ refreshToken: session.tokens.refreshToken })
+        .expect(401);
+    });
+
+    it('lets only one of two simultaneous refreshes through, then ends the session', async () => {
+      // A stolen token used at the same moment as the real one.
+      const { session } = await register();
+      const refresh = () =>
+        http().post('/api/auth/refresh').send({ refreshToken: session.tokens.refreshToken });
+      const results = await Promise.all([refresh(), refresh()]);
+      expect(results.map((res) => res.status).sort()).toEqual([200, 401]);
+
+      const winner = results.find((res) => res.status === 200)!;
+      await http()
+        .post('/api/auth/refresh')
+        .send({ refreshToken: winner.body.tokens.refreshToken })
+        .expect(401);
+      const live = await prisma.refreshToken.count({
+        where: { userId: session.user.id, revokedAt: null },
+      });
+      expect(live).toBe(0);
+    });
+
     it('stores only hashes of refresh tokens', async () => {
       const { session } = await register();
       const rows = await prisma.refreshToken.findMany({ where: { userId: session.user.id } });

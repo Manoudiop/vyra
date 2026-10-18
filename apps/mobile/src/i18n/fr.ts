@@ -69,6 +69,8 @@ export const fr = {
       hasAccount: 'Déjà un compte ?',
       login: 'Se connecter',
       terms: 'En continuant, tu acceptes nos conditions d’utilisation.',
+      emailTaken:
+        'Un compte existe déjà avec cet email. Connecte-toi ou réinitialise ton mot de passe.',
     },
     forgot: {
       title: 'Mot de passe oublié',
@@ -82,6 +84,7 @@ export const fr = {
       resend: 'Renvoyer un code',
       resent: 'Si un compte existe, un nouveau code a été envoyé.',
       success: 'Mot de passe modifié. Connecte-toi avec ton nouveau mot de passe.',
+      invalidCode: 'Ce code est invalide ou a expiré. Demande un nouveau code.',
     },
   },
   occasions: {

@@ -5,6 +5,7 @@ import { type AuthTokens, type Role } from '@vyra/shared';
 import { AppException } from '../common/errors/app.exception';
 import { generateOpaqueToken, hmacSha256 } from '../common/security/tokens';
 import { AppConfigService } from '../config/app-config.service';
+import { type Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { type AccessTokenPayload } from './auth.types';
 
@@ -32,12 +33,14 @@ export class TokenService {
     user: { id: string; role: Role },
     userAgent?: string,
     familyId: string = randomUUID(),
+    /** A transaction client when issuing as part of a rotation. */
+    db: Pick<Prisma.TransactionClient, 'refreshToken'> = this.prisma,
   ): Promise<{ tokens: AuthTokens; refreshTokenId: string }> {
     const refreshToken = generateOpaqueToken();
     const refreshTokenExpiresAt = new Date(
       Date.now() + this.config.get('REFRESH_TOKEN_TTL_DAYS') * DAY_MS,
     );
-    const row = await this.prisma.refreshToken.create({
+    const row = await db.refreshToken.create({
       data: {
         userId: user.id,
         tokenHash: this.hash(refreshToken),
@@ -81,21 +84,27 @@ export class TokenService {
     }
     if (current.expiresAt <= new Date()) throw invalidSession();
 
-    // Conditional update guards against two concurrent rotations of the same token.
-    const claimed = await this.prisma.refreshToken.updateMany({
-      where: { id: current.id, revokedAt: null },
-      data: { revokedAt: new Date() },
+    // Claiming the token and issuing its successor happen in one transaction.
+    // A concurrent rotation of the same token blocks on the row until this one
+    // commits, then finds it claimed: its family revocation then also covers
+    // the successor (otherwise a thief racing the user could keep a session).
+    const next = await this.prisma.$transaction(async (tx) => {
+      const claimed = await tx.refreshToken.updateMany({
+        where: { id: current.id, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+      if (claimed.count === 0) return null;
+      const issued = await this.issue(current.user, userAgent, current.familyId, tx);
+      await tx.refreshToken.update({
+        where: { id: current.id },
+        data: { replacedById: issued.refreshTokenId },
+      });
+      return issued;
     });
-    if (claimed.count === 0) {
+    if (!next) {
       await this.revokeFamily(current.familyId);
       throw invalidSession();
     }
-
-    const next = await this.issue(current.user, userAgent, current.familyId);
-    await this.prisma.refreshToken.update({
-      where: { id: current.id },
-      data: { replacedById: next.refreshTokenId },
-    });
     return { userId: current.user.id, tokens: next.tokens };
   }
 

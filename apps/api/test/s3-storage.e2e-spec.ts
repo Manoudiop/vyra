@@ -32,7 +32,12 @@ describe('S3StorageAdapter against MinIO (integration)', () => {
   beforeAll(async () => {
     available = await minioAvailable();
     if (available) await adapter.ensureBucket();
-    else console.warn('MinIO not reachable: S3 integration test skipped (run `pnpm db:up`).');
+    else if (process.env.REQUIRE_MINIO === '1') {
+      // CI runs MinIO: a silent skip there would hide a broken S3 adapter.
+      throw new Error(
+        `MinIO is required (REQUIRE_MINIO=1) but not reachable at ${settings.endpoint}`,
+      );
+    } else console.warn('MinIO not reachable: S3 integration test skipped (run `pnpm db:up`).');
   });
 
   it('uploads, signs, serves and deletes objects', async () => {

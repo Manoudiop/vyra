@@ -555,3 +555,53 @@ describe('weather', () => {
     expect(weatherFit(linen, weather(8))).toBeLessThan(-0.25);
   });
 });
+
+describe('eligibility rules', () => {
+  const allItems = (result: ReturnType<typeof generateCandidates>) => {
+    if (!result.ok) throw new Error(result.reason);
+    return result.candidates.flatMap((candidate) => candidate.items);
+  };
+
+  it('never uses a color the user asked to avoid', () => {
+    const result = generateCandidates(
+      CLOSET,
+      context('CASUAL', 'CASUAL', { constraints: { avoidColors: ['white'] } }),
+    );
+    expect(allItems(result).every((piece) => piece.color !== 'white')).toBe(true);
+  });
+
+  it('says NO_MATCH when the constraints leave no shoes at all', () => {
+    const result = generateCandidates(
+      CLOSET,
+      context('CASUAL', 'CASUAL', {
+        constraints: { avoidKinds: ['sneakers', 'heels'], avoidColors: ['brown'] },
+      }),
+    );
+    expect(result).toMatchObject({ ok: false });
+    expect(result.ok ? null : result.reason).toBe('NO_MATCH');
+  });
+
+  it('keeps heels away from a workout and sportswear away from work and weddings', () => {
+    const trainers = item({
+      category: 'SHOES',
+      name: 'Running',
+      subcategory: 'running shoes',
+      color: 'black',
+      style: 'SPORT',
+    });
+    const leggings = item({
+      category: 'BOTTOMS',
+      name: 'Legging',
+      subcategory: 'leggings',
+      color: 'black',
+      style: 'SPORT',
+    });
+    const closet = [...CLOSET, trainers, leggings];
+    expect(allItems(generateCandidates(closet, context('WORKOUT', 'SPORT')))).not.toContain(heels);
+    for (const occasion of ['WORK', 'WEDDING'] as const) {
+      const used = allItems(generateCandidates(closet, context(occasion, 'SMART_CASUAL')));
+      expect(used).not.toContain(trainers);
+      expect(used).not.toContain(leggings);
+    }
+  });
+});

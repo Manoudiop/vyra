@@ -83,12 +83,27 @@ export interface ExplainOutfitInput {
   locale: string;
 }
 
+export interface Weighted<T extends string = string> {
+  value: T;
+  weight: number;
+}
+
 export interface AnalyzeStyleInput {
+  /** Declared at onboarding / in the profile. */
   preferredStyles: Style[];
   preferredColors: string[];
   closet: AIClothingItem[];
   lovedOutfits: AIClothingItem[][];
   dislikedOutfits: AIClothingItem[][];
+  /** Looks worn over the last months, most recent first. */
+  wornOutfits: AIClothingItem[][];
+  /** What style learning measured from ratings, wears and saves (weights in [-1, 1]). */
+  learned: {
+    colors: Weighted[];
+    avoidedColors: Weighted[];
+    styles: Weighted<Style>[];
+    occasionStyles: { occasion: Occasion; style: Style }[];
+  };
   locale: string;
 }
 

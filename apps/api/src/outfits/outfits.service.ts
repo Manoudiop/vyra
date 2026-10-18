@@ -23,6 +23,8 @@ import { AppException } from '../common/errors/app.exception';
 import { dateColumn, dayOfDateColumn, localDay, startOfLocalDay } from '../common/time/local-day';
 import { type Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { avoidedItemIds, readLearned } from '../style/learn-style';
+import { StyleLearningService } from '../style/style-learning.service';
 import {
   baseKeyOf,
   type Candidate,
@@ -80,6 +82,7 @@ export class OutfitsService {
     private readonly prisma: PrismaService,
     private readonly provider: AIProvider,
     private readonly closet: ClosetService,
+    private readonly learning: StyleLearningService,
   ) {}
 
   async generate(userId: string, request: GenerateRequest): Promise<GenerateOutfitResponse> {
@@ -102,6 +105,8 @@ export class OutfitsService {
       );
     }
 
+    // Apply any rating, wear or save that has not been learned from yet.
+    await this.learning.ensureFresh(userId);
     const [items, preferences, wears, planned, recentOutfits, feedback, excluded] =
       await Promise.all([
         this.prisma.clothingItem.findMany({ where: { userId, archivedAt: null } }),
@@ -143,6 +148,7 @@ export class OutfitsService {
           : Promise.resolve([]),
       ]);
 
+    const learned = readLearned(preferences?.metadata);
     const keyOf = (outfit: { items: { clothingItemId: string }[] }) =>
       comboKey(outfit.items.map((item) => item.clothingItemId));
     const piecesKey = (outfit: OutfitPieces) =>
@@ -193,14 +199,16 @@ export class OutfitsService {
       preferences: {
         colors: preferences?.preferredColors ?? [],
         styles: preferences?.preferredStyles ?? [],
-        dislikedItemIds: preferences?.dislikedItems ?? [],
+        // Pieces the user marked, plus pieces they keep rejecting.
+        dislikedItemIds: [...(preferences?.dislikedItems ?? []), ...avoidedItemIds(learned)],
       },
       useDistanceDays,
-      lovedItemIds: new Set(
-        feedback
-          .filter((entry) => entry.rating === 'LOVE')
-          .flatMap((entry) => entry.outfit.items.map((item) => item.clothingItem.id)),
-      ),
+      affinity: {
+        colors: new Map(Object.entries(learned.colors)),
+        styles: new Map(Object.entries(learned.styles)),
+        items: new Map(Object.entries(learned.items)),
+        occasionStyles: new Map(Object.entries(learned.occasionStyles[request.occasion] ?? {})),
+      },
       recentCombos: new Set(recentOutfits.map(keyOf)),
       dislikedCombos: new Set(disliked.map(piecesKey)),
       dislikedBases: new Set(disliked.map(piecesBase)),
@@ -306,6 +314,7 @@ export class OutfitsService {
   async update(userId: string, id: string, input: UpdateOutfitInput): Promise<Outfit> {
     await this.assertOwned(userId, id);
     await this.prisma.outfit.update({ where: { id }, data: { isSaved: input.isSaved } });
+    this.learning.markDirty(userId);
     return this.get(userId, id);
   }
 
@@ -320,6 +329,7 @@ export class OutfitsService {
     if ((await this.wearsToday(userId, id, now)).length === 0) {
       await this.prisma.wearHistory.create({ data: { userId, outfitId: id, wornAt: now } });
     }
+    this.learning.markDirty(userId);
     return this.get(userId, id);
   }
 
@@ -332,6 +342,7 @@ export class OutfitsService {
         where: { userId, id: { in: today.map((wear) => wear.id) } },
       });
     }
+    this.learning.markDirty(userId);
     return this.get(userId, id);
   }
 
@@ -344,12 +355,14 @@ export class OutfitsService {
       create: { outfitId: id, userId, rating: input.rating, comment },
       update: { rating: input.rating, comment },
     });
+    this.learning.markDirty(userId);
     return this.get(userId, id);
   }
 
   async clearRating(userId: string, id: string): Promise<Outfit> {
     await this.assertOwned(userId, id);
     await this.prisma.outfitFeedback.deleteMany({ where: { outfitId: id, userId } });
+    this.learning.markDirty(userId);
     return this.get(userId, id);
   }
 

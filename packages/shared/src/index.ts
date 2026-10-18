@@ -9,3 +9,4 @@ export * from './images';
 export * from './outfits';
 export * from './plans';
 export * from './profile';
+export * from './style-profile';

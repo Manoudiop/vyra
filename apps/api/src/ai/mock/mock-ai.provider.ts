@@ -11,6 +11,7 @@ import {
 } from '../ai.provider';
 import { analyzeFeatures } from './clothing-classifier';
 import { extractFeatures } from './garment-vision';
+import { analyzeStyleFromFacts } from './style-analysis';
 import { explainOutfit, outfitName } from './stylist-copy';
 
 /**
@@ -49,11 +50,7 @@ export class MockAIProvider extends AIProvider {
     return explainOutfit(input);
   }
 
-  analyzeStyle(_input: AnalyzeStyleInput): Promise<StyleAnalysis> {
-    return Promise.reject(notYetAvailable('analyzeStyle'));
+  analyzeStyle(input: AnalyzeStyleInput): Promise<StyleAnalysis> {
+    return Promise.resolve(analyzeStyleFromFacts(input));
   }
-}
-
-function notYetAvailable(method: string) {
-  return new AppException('AI_ERROR', `The mock provider does not implement ${method} yet`);
 }

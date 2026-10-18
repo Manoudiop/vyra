@@ -7,6 +7,7 @@ import {
   type LucideIcon,
   Palette,
   Settings,
+  Sparkles,
 } from 'lucide-react-native';
 import { router } from 'expo-router';
 import { useState } from 'react';
@@ -104,6 +105,13 @@ export default function ProfileScreen() {
       </Card>
 
       <Card padded={false} style={styles.list}>
+        <Row
+          testID="profile-my-style"
+          icon={Sparkles}
+          label={t('profile.myStyle')}
+          onPress={() => router.push('/style-profile')}
+        />
+        <View style={styles.divider} />
         <Row
           testID="profile-style-preferences"
           icon={Palette}

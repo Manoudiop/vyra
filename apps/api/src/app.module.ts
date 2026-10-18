@@ -15,6 +15,7 @@ import { OutfitsModule } from './outfits/outfits.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { ProfilesModule } from './profiles/profiles.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
+import { StyleModule } from './style/style.module';
 import { StorageModule } from './storage/storage.module';
 import { UsersModule } from './users/users.module';
 
@@ -35,6 +36,7 @@ import { UsersModule } from './users/users.module';
     AiModule,
     OutfitsModule,
     CalendarModule,
+    StyleModule,
   ],
   providers: [
     { provide: APP_PIPE, useClass: ZodValidationPipe },

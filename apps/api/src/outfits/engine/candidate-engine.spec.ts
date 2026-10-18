@@ -1,11 +1,13 @@
 import { type Occasion, type OutfitConstraints, type Style } from '@vyra/shared';
 import {
+  type Affinity,
   baseKeyOf,
   colorHarmony,
   comboKey,
   type EngineContext,
   type EngineItem,
   generateCandidates,
+  NO_AFFINITY,
   recencyPenalty,
   slotOf,
 } from './candidate-engine';
@@ -128,7 +130,7 @@ function context(
     constraints: { avoidColors: [], avoidKinds: [], ...constraints },
     preferences: { colors: [], styles: [], dislikedItemIds: [] },
     useDistanceDays: new Map(),
-    lovedItemIds: new Set(),
+    affinity: NO_AFFINITY,
     recentCombos: new Set(),
     dislikedCombos: new Set(),
     excludedCombos: new Set(),
@@ -287,6 +289,34 @@ describe('generateCandidates', () => {
       ),
     );
     expect(baseKeyOf(next.items)).not.toBe(base);
+  });
+
+  it('weighs learned taste: loved pieces and colors up, rejected ones down', () => {
+    const plain = generateCandidates(CLOSET, context('WORK', 'SMART_CASUAL'));
+    const look = best(plain);
+    const scoreOf = (result: ReturnType<typeof generateCandidates>) => {
+      if (!result.ok) throw new Error(result.reason);
+      return result.candidates.find((candidate) => candidate.key === look.key)!.score;
+    };
+    const withAffinity = (affinity: Partial<Affinity>) =>
+      generateCandidates(
+        CLOSET,
+        context('WORK', 'SMART_CASUAL', { affinity: { ...NO_AFFINITY, ...affinity } }),
+      );
+    const piece = look.items[look.slots.indexOf('top')]!;
+
+    const loved = scoreOf(withAffinity({ items: new Map([[piece.id, 0.8]]) }));
+    const rejectedColor = scoreOf(withAffinity({ colors: new Map([[piece.color, -0.9]]) }));
+    const lovedStyleHere = scoreOf(
+      withAffinity({ occasionStyles: new Map([['SMART_CASUAL', 0.8]]) }),
+    );
+    // Same look, same seed: only the learned weights differ.
+    expect(loved - look.score).toBeGreaterThan(0.02);
+    expect(look.score - rejectedColor).toBeGreaterThan(0.02);
+    expect(lovedStyleHere).toBeGreaterThan(look.score);
+    // A nudge, not a takeover: even a strong opinion moves a look by less
+    // than what a style misfit costs.
+    expect(loved - look.score).toBeLessThan(0.05);
   });
 
   it('avoids repeating main pieces used a few days around the target day', () => {

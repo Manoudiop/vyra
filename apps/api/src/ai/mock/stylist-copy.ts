@@ -7,10 +7,10 @@ import { type AIClothingItem, type WeatherContext } from '../ai.provider';
  * phrasing varies with the outfit so repeated looks do not read the same.
  */
 
-type Locale = 'fr' | 'en';
-const pickLocale = (locale: string): Locale => (locale.startsWith('en') ? 'en' : 'fr');
+export type Locale = 'fr' | 'en';
+export const pickLocale = (locale: string): Locale => (locale.startsWith('en') ? 'en' : 'fr');
 
-const NEUTRALS = new Set([
+export const NEUTRALS = new Set([
   'black',
   'white',
   'cream',
@@ -23,7 +23,7 @@ const NEUTRALS = new Set([
   'gold',
 ]);
 
-const COLOR_NOUNS: Record<Locale, Record<string, string>> = {
+export const COLOR_NOUNS: Record<Locale, Record<string, string>> = {
   fr: {
     black: 'noir',
     white: 'blanc',
@@ -70,7 +70,7 @@ const COLOR_NOUNS: Record<Locale, Record<string, string>> = {
   },
 };
 
-const OCCASION_PHRASE: Record<Locale, Record<Occasion, string>> = {
+export const OCCASION_PHRASE: Record<Locale, Record<Occasion, string>> = {
   fr: {
     WORK: 'le bureau',
     DATE: 'ce rendez-vous',
@@ -215,7 +215,8 @@ function hash(text: string): number {
 const choose = <T>(options: T[], seed: number): T => options[seed % options.length]!;
 
 /** French definite article with elision: « le bleu », « l’olive ». */
-const leFr = (word: string) => (/^[aeiouyhéèêàâîôû]/i.test(word) ? `l’${word}` : `le ${word}`);
+export const leFr = (word: string) =>
+  /^[aeiouyhéèêàâîôû]/i.test(word) ? `l’${word}` : `le ${word}`;
 
 /** Plural garment names start with a plural noun: « Derbies marron », « Baskets blanches ». */
 const isPluralName = (name: string) => /[sx]$/i.test(name.trim().split(/\s+/)[0] ?? '');
@@ -387,15 +388,15 @@ export function explainOutfit(facts: ExplanationFacts): string {
   return sentences.join(' ');
 }
 
-function capitalize(text: string): string {
+export function capitalize(text: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
-function joinFr(parts: string[]): string {
+export function joinFr(parts: string[]): string {
   return parts.length <= 1
     ? (parts[0] ?? '')
     : `${parts.slice(0, -1).join(', ')} et ${parts.at(-1)}`;
 }
-function joinEn(parts: string[]): string {
+export function joinEn(parts: string[]): string {
   return parts.length <= 1
     ? (parts[0] ?? '')
     : `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)}`;

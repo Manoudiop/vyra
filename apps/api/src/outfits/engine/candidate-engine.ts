@@ -26,6 +26,20 @@ export interface EngineItem {
   isFavorite: boolean;
 }
 
+export interface Affinity {
+  colors: Map<string, number>;
+  styles: Map<string, number>;
+  items: Map<string, number>;
+  occasionStyles: Map<string, number>;
+}
+
+export const NO_AFFINITY: Affinity = {
+  colors: new Map(),
+  styles: new Map(),
+  items: new Map(),
+  occasionStyles: new Map(),
+};
+
 export interface EngineContext {
   occasion: Occasion;
   style: Style;
@@ -36,8 +50,11 @@ export interface EngineContext {
    * before it, or planned in the calendar around it (missing = no use nearby).
    */
   useDistanceDays: Map<string, number>;
-  /** Items present in outfits the user loved. */
-  lovedItemIds: Set<string>;
+  /**
+   * Learned taste in [-1, 1] (style learning): colors, styles and pieces, and
+   * the styles the user goes for at this occasion. Missing = no opinion yet.
+   */
+  affinity: Affinity;
   /** Combination keys generated recently (mild penalty) or disliked (strong penalty). */
   recentCombos: Set<string>;
   dislikedCombos: Set<string>;
@@ -225,7 +242,16 @@ export function scoreItem(item: EngineItem, context: EngineContext): number {
   if (context.preferences.colors.includes(item.color)) score += 0.08;
   if (style && context.preferences.styles.includes(style)) score += 0.08;
   if (item.isFavorite) score += 0.06;
-  if (context.lovedItemIds.has(item.id)) score += 0.05;
+  // Learned taste nudges, never overrides, the fit to the occasion. Piece
+  // scores are averaged over the look (~4 pieces), hence these sizes: a
+  // well-loved piece moves its look by ~0.04, less than a style misfit costs.
+  const { affinity } = context;
+  score += 0.14 * (affinity.colors.get(item.color) ?? 0);
+  if (style) {
+    score += 0.1 * (affinity.styles.get(style) ?? 0);
+    score += 0.1 * (affinity.occasionStyles.get(style) ?? 0);
+  }
+  score += 0.15 * (affinity.items.get(item.id) ?? 0);
   return score - recencyPenalty(context.useDistanceDays.get(item.id));
 }
 

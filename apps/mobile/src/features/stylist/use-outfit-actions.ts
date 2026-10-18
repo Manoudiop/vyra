@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { type Outfit, type OutfitFeedbackInput } from '@vyra/shared';
 import { calendarKeys } from '@/features/calendar/calendar-api';
 import { closetKeys } from '@/features/closet/closet-api';
+import { styleKeys } from '@/features/style/style-api';
 import { haptics } from '@/ui';
 import { outfitKeys, stylistApi } from './stylist-api';
 
@@ -64,6 +65,8 @@ export function useOutfitAction(id: string) {
     },
     onSuccess: (outfit, action) => {
       queryClient.setQueryData(key, outfit);
+      // Every rating, wear and save teaches the style profile something.
+      void queryClient.invalidateQueries({ queryKey: styleKeys.profile });
       if (action.type === 'save')
         void queryClient.invalidateQueries({ queryKey: outfitKeys.saved() });
       if (action.type === 'wear') {

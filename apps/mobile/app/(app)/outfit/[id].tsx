@@ -30,6 +30,7 @@ import { GeneratingOverlay } from '@/features/stylist/GeneratingOverlay';
 import { outfitKeys, stylistApi } from '@/features/stylist/stylist-api';
 import { useGenerateOutfit } from '@/features/stylist/use-generate-outfit';
 import { useOutfitAction } from '@/features/stylist/use-outfit-actions';
+import { WeatherChip } from '@/features/weather/WeatherCard';
 import { errorMessage } from '@/lib/errors';
 import { goBackOr } from '@/lib/navigation';
 import {
@@ -228,6 +229,15 @@ export default function OutfitScreen() {
           <Text variant="title1" accessibilityRole="header" testID="outfit-name">
             {data.name}
           </Text>
+          {data.weather && (
+            <WeatherChip
+              testID="outfit-weather"
+              prefix={t('weather.composedFor')}
+              temperatureC={data.weather.temperatureC}
+              condition={data.weather.condition}
+              rainProbability={data.weather.rainProbability}
+            />
+          )}
           {lastWorn && (
             <Text variant="footnote" color="secondary" testID="outfit-last-worn">
               {t('outfit.lastWorn', { date: lastWorn })}

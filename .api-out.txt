@@ -1,0 +1,35 @@
+PASS test/ai.e2e-spec.ts (17.014 s)
+PASS prisma/seed/garment-images.spec.ts (17.767 s)
+PASS src/ai/mock/clothing-classifier.spec.ts (24.295 s)
+PASS test/calendar.e2e-spec.ts (9.523 s)
+PASS test/stylist.e2e-spec.ts (13.722 s)
+PASS test/auth.e2e-spec.ts (8.664 s)
+PASS test/outfit-actions.e2e-spec.ts (15.133 s)
+PASS test/style-profile.e2e-spec.ts (8.107 s)
+PASS test/closet.e2e-spec.ts (6.403 s)
+PASS test/profile.e2e-spec.ts
+PASS test/auth-rate-limit.e2e-spec.ts
+PASS test/weather.e2e-spec.ts (5.502 s)
+PASS src/weather/weather.spec.ts
+[33m[Nest] 9120  - [39m18/10/2026 11:46:17 [33m   WARN[39m [38;5;3m[WeatherService] [39m[33mWeather unavailable for Paris (counting): down[39m
+PASS src/common/errors/all-exceptions.filter.spec.ts
+PASS test/health.e2e-spec.ts
+PASS src/auth/guards/roles.guard.spec.ts
+PASS test/s3-storage.e2e-spec.ts
+PASS test/images.e2e-spec.ts
+PASS src/storage/image-pipeline.spec.ts
+PASS src/outfits/engine/candidate-engine.spec.ts
+PASS src/style/learn-style.spec.ts
+PASS src/prisma/prisma-enums.spec.ts
+PASS src/config/env.schema.spec.ts
+PASS src/health/health.controller.spec.ts
+PASS src/storage/local-storage.adapter.spec.ts
+PASS src/common/time/local-day.spec.ts
+PASS src/ai/mock/style-analysis.spec.ts
+PASS src/ai/mock/stylist-copy.spec.ts
+
+Test Suites: 28 passed, 28 total
+Tests:       214 passed, 214 total
+Snapshots:   0 total
+Time:        51.405 s, estimated 54 s
+Ran all test suites.

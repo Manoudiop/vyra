@@ -40,6 +40,12 @@ export const NO_AFFINITY: Affinity = {
   occasionStyles: new Map(),
 };
 
+export interface EngineWeather {
+  minC: number;
+  maxC: number;
+  rainy: boolean;
+}
+
 export interface EngineContext {
   occasion: Occasion;
   style: Style;
@@ -71,6 +77,8 @@ export interface EngineContext {
    * in days: repeating a whole look within the week weighs more than sharing a piece.
    */
   usedBases: Map<string, number>;
+  /** Weather of the target day in the user's city; `null` when unknown. */
+  weather: EngineWeather | null;
   /** Variety: different seeds break near-ties differently. */
   seed: number;
 }
@@ -120,6 +128,57 @@ const ONE_PIECE_KEYWORDS = [
 ];
 
 const words = (item: EngineItem) => normalize(`${item.subcategory ?? ''} ${item.name}`);
+
+/** Open shoes that do not belong in the rain. */
+const OPEN_SHOES = ['sandal', 'tong', 'flip', 'mule', 'espadrille', 'nu-pied', 'slide'];
+/** Warm layers and fabrics, wrong in the heat, right in the cold. */
+const WARM_PIECES = [
+  'pull',
+  'sweater',
+  'manteau',
+  'coat',
+  'doudoune',
+  'puffer',
+  'laine',
+  'wool',
+  'bomber',
+  'cardigan',
+  'parka',
+  'hoodie',
+  'sweat',
+];
+/** Layers made for rain. */
+const RAIN_LAYERS = ['trench', 'imperm', 'raincoat', 'k-way', 'parka'];
+
+/**
+ * How a piece suits the day's weather. Uses the season stored on the piece
+ * and what its name says (sandals, wool, trench…). Tuned so weather decides
+ * between suitable pieces and rules out the plainly wrong ones (sandals in
+ * the rain, a sweater at 32 °C) without overriding the occasion.
+ */
+export function weatherFit(item: EngineItem, weather: EngineWeather | null): number {
+  if (!weather) return 0;
+  const text = words(item);
+  const slot = slotOf(item);
+  const warmPiece = item.season === 'WINTER' || WARM_PIECES.some((word) => text.includes(word));
+  let fit = 0;
+  if (weather.maxC >= 28) {
+    if (warmPiece) fit -= 0.3;
+    else if (item.season === 'AUTUMN') fit -= 0.12;
+    else if (item.season === 'SUMMER') fit += 0.05;
+  } else if (weather.maxC >= 23) {
+    if (warmPiece) fit -= 0.1;
+  } else if (weather.maxC < 18) {
+    const cold = weather.maxC < 12;
+    if (item.season === 'SUMMER' && slot !== 'accessory') fit -= cold ? 0.3 : 0.12;
+    if (warmPiece || slot === 'outer') fit += cold ? 0.12 : 0.05;
+  }
+  if (weather.rainy) {
+    if (slot === 'shoes' && OPEN_SHOES.some((word) => text.includes(word))) fit -= 0.45;
+    if (RAIN_LAYERS.some((word) => text.includes(word))) fit += 0.1;
+  }
+  return fit;
+}
 
 export function isKind(item: EngineItem, kind: AvoidableKind): boolean {
   const text = words(item);
@@ -252,6 +311,7 @@ export function scoreItem(item: EngineItem, context: EngineContext): number {
     score += 0.1 * (affinity.occasionStyles.get(style) ?? 0);
   }
   score += 0.15 * (affinity.items.get(item.id) ?? 0);
+  score += weatherFit(item, context.weather);
   return score - recencyPenalty(context.useDistanceDays.get(item.id));
 }
 
@@ -393,6 +453,12 @@ export function generateCandidates(closet: EngineItem[], context: EngineContext)
           else if (context.dislikedBases.has(baseKey)) score -= 0.3;
           if (context.excludedBases.has(baseKey)) score -= 0.25;
           score -= baseRepeatPenalty(context.usedBases.get(baseKey));
+          // A cool day wants a layer; a hot one is better without.
+          if (context.weather && slots.includes('outer')) {
+            if (context.weather.maxC >= 30) score -= 0.03;
+          } else if (context.weather && context.weather.maxC < 16) {
+            score -= 0.06;
+          }
           score += (jitter(context.seed, key) - 0.5) * 0.04;
           candidates.push({ items, slots, key, score: Math.max(0, Math.min(1, score)) });
         }

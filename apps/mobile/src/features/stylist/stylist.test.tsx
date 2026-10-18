@@ -68,6 +68,7 @@ const outfit = (id: string, name: string, items: ClothingItem[]): Outfit => ({
   items,
   feedback: null,
   wornToday: false,
+  weather: null,
   lastWornAt: null,
   createdAt: '2026-10-18T09:00:00.000Z',
 });

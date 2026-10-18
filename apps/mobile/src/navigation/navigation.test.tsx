@@ -75,7 +75,8 @@ describe('protected navigation', () => {
 
     expect(await screen.findByTestId('home-screen')).toBeTruthy();
     // Empty-state title and its call to action.
-    expect(screen.getAllByText('Crée ton premier look')).toHaveLength(2);
+    expect(screen.getByText('Rien de prévu aujourd’hui')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Créer mon look du jour' })).toBeTruthy();
     expect(screen.getByTestId('tab-stylist')).toBeTruthy();
     expect(api.refresh).toHaveBeenCalledWith('refresh-saved');
   });

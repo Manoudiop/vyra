@@ -3,6 +3,7 @@ import { calendarDateSchema } from './calendar';
 import { occasionSchema, styleSchema } from './catalog';
 import { clothingItemSchema } from './closet';
 import { styleColorSchema } from './profile';
+import { outfitWeatherSchema } from './weather';
 
 /** Quick constraints offered by the stylist screen ("avoid jeans", "no heels"…). */
 export const AVOIDABLE_KINDS = ['jeans', 'heels', 'sneakers', 'shorts', 'skirt', 'dress'] as const;
@@ -82,6 +83,8 @@ export const outfitSchema = z.object({
     .nullable(),
   /** Worn on the current day in the user's timezone. */
   wornToday: z.boolean(),
+  /** The weather the look was composed for, if known. */
+  weather: outfitWeatherSchema.nullable(),
   lastWornAt: z.string().nullable(),
   createdAt: z.string(),
 });

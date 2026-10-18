@@ -81,6 +81,7 @@ const outfit = (id: string, name: string, extra: Partial<Outfit> = {}): Outfit =
   items: [SHIRT, CHINOS, DERBIES],
   feedback: null,
   wornToday: false,
+  weather: null,
   lastWornAt: null,
   createdAt: '2026-10-10T09:00:00.000Z',
   ...extra,

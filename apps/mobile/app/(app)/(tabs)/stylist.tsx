@@ -34,6 +34,8 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { FormBanner } from '@/features/auth/components';
 import { useDayFormat } from '@/features/calendar/hooks';
+import { useWeather } from '@/features/weather/use-weather';
+import { WeatherChip } from '@/features/weather/WeatherCard';
 import { useClosetList } from '@/features/closet/hooks';
 import { GeneratingOverlay } from '@/features/stylist/GeneratingOverlay';
 import { useGenerateOutfit } from '@/features/stylist/use-generate-outfit';
@@ -100,6 +102,7 @@ export default function StylistScreen() {
   // Set when coming from a calendar day: the look is for that day.
   const { date } = useLocalSearchParams<{ date?: string }>();
   const format = useDayFormat();
+  const weather = useWeather(date ?? null).data?.weather;
   const [occasion, setOccasion] = useState<Occasion | null>(null);
   const [style, setStyle] = useState<Style | null>(null);
   const [styleTouched, setStyleTouched] = useState(false);
@@ -190,6 +193,20 @@ export default function StylistScreen() {
             </Text>
           </LinearGradient>
         </Animated.View>
+
+        {weather && (
+          <View style={styles.weather}>
+            <WeatherChip
+              testID="stylist-weather"
+              temperatureC={weather.kind === 'CURRENT' ? weather.temperatureC : weather.maxC}
+              condition={weather.condition}
+              rainProbability={weather.rainProbability}
+            />
+            <Text variant="caption" color="secondary">
+              {t('weather.takenIntoAccount', { city: weather.city })}
+            </Text>
+          </View>
+        )}
 
         {date && (
           <Card style={styles.forDay} testID="stylist-for-day">
@@ -373,6 +390,13 @@ const styles = StyleSheet.create({
   },
   heroBody: { color: 'rgba(255,255,255,0.72)' },
   incomplete: { marginTop: spacing.xl },
+  weather: {
+    marginTop: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    flexWrap: 'wrap',
+  },
   forDay: { marginTop: spacing.lg, flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   forDayLabel: { flex: 1 },
   section: { gap: spacing.md, marginTop: spacing.xl },

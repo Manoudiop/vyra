@@ -10,6 +10,7 @@ import {
   NO_AFFINITY,
   recencyPenalty,
   slotOf,
+  weatherFit,
 } from './candidate-engine';
 
 let counter = 0;
@@ -136,6 +137,7 @@ function context(
     excludedCombos: new Set(),
     dislikedBases: new Set(),
     usedBases: new Map(),
+    weather: null,
     excludedBases: new Set(),
     seed: 1,
     ...rest,
@@ -434,5 +436,122 @@ describe('scoring helpers', () => {
     );
     expect(one).toBeGreaterThan(0);
     expect(clash).toBeLessThan(0);
+  });
+});
+
+describe('weather', () => {
+  const sandals = item({
+    category: 'SHOES',
+    name: 'Sandales à talon dorées',
+    subcategory: 'heels',
+    color: 'gold',
+    style: 'ELEGANT',
+    season: 'SUMMER',
+  });
+  const loafers = item({
+    category: 'SHOES',
+    name: 'Mocassins cognac',
+    subcategory: 'loafers',
+    color: 'brown',
+    style: 'SMART_CASUAL',
+  });
+  const silk = item({
+    category: 'TOPS',
+    name: 'Top en soie',
+    subcategory: 'blouse',
+    color: 'cream',
+    style: 'ELEGANT',
+  });
+  const trousers = item({
+    category: 'BOTTOMS',
+    name: 'Pantalon noir',
+    subcategory: 'trousers',
+    color: 'black',
+    style: 'ELEGANT',
+  });
+  const sweater = item({
+    category: 'TOPS',
+    name: 'Pull fin camel',
+    subcategory: 'sweater',
+    color: 'camel',
+    style: 'SMART_CASUAL',
+    season: 'AUTUMN',
+  });
+  const linen = item({
+    category: 'TOPS',
+    name: 'Chemise en lin',
+    subcategory: 'shirt',
+    color: 'white',
+    style: 'SMART_CASUAL',
+    season: 'SUMMER',
+  });
+  const shorts = item({
+    category: 'BOTTOMS',
+    name: 'Short en lin',
+    subcategory: 'shorts',
+    color: 'beige',
+    style: 'CASUAL',
+    season: 'SUMMER',
+  });
+  const trench = item({
+    category: 'OUTERWEAR',
+    name: 'Trench classique',
+    subcategory: 'trench coat',
+    color: 'beige',
+    style: 'SMART_CASUAL',
+    season: 'AUTUMN',
+  });
+  const dinnerCloset = [silk, trousers, sandals, loafers, trench];
+  const weather = (maxC: number, rainy = false) => ({ minC: maxC - 6, maxC, rainy });
+  const shoesOf = (result: ReturnType<typeof generateCandidates>) => {
+    const look = best(result);
+    return look.items[look.slots.indexOf('shoes')]!.id;
+  };
+
+  it('picks the sandals on a dry evening, but not in the rain', () => {
+    const dry = generateCandidates(
+      dinnerCloset,
+      context('DINNER', 'ELEGANT', { weather: weather(29) }),
+    );
+    expect(shoesOf(dry)).toBe(sandals.id);
+    const rainy = generateCandidates(
+      dinnerCloset,
+      context('DINNER', 'ELEGANT', { weather: weather(29, true) }),
+    );
+    expect(shoesOf(rainy)).toBe(loafers.id);
+    if (!rainy.ok) throw new Error(rainy.reason);
+    expect(rainy.candidates.slice(0, 3).every((look) => !look.items.includes(sandals))).toBe(true);
+  });
+
+  it('leaves the sweater home in the heat and reaches for it in the cold', () => {
+    const closet = [sweater, linen, chinos, derbies];
+    const topOf = (result: ReturnType<typeof generateCandidates>) => {
+      const look = best(result);
+      return look.items[look.slots.indexOf('top')]!.id;
+    };
+    expect(
+      topOf(generateCandidates(closet, context('WORK', 'SMART_CASUAL', { weather: weather(32) }))),
+    ).toBe(linen.id);
+    expect(
+      topOf(generateCandidates(closet, context('WORK', 'SMART_CASUAL', { weather: weather(9) }))),
+    ).toBe(sweater.id);
+  });
+
+  it('adds a layer on a cold day and keeps summer shorts for the heat', () => {
+    const closet = [linen, chinos, shorts, sneakers, trench];
+    const cold = best(
+      generateCandidates(closet, context('CASUAL', 'CASUAL', { weather: weather(10) })),
+    );
+    expect(cold.slots).toContain('outer');
+    expect(cold.items).not.toContain(shorts);
+  });
+
+  it('scores pieces against the weather', () => {
+    expect(weatherFit(sandals, null)).toBe(0);
+    expect(weatherFit(sandals, weather(26, true))).toBeLessThan(-0.4);
+    expect(weatherFit(trench, weather(15, true))).toBeGreaterThan(0.1);
+    expect(weatherFit(sweater, weather(31))).toBeLessThan(-0.25);
+    expect(weatherFit(linen, weather(31))).toBeGreaterThan(0);
+    expect(weatherFit(linen, weather(8))).toBeLessThan(-0.25);
   });
 });

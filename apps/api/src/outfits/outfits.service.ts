@@ -3,6 +3,10 @@ import {
   addDays,
   daysBetween,
   dislikeReasonSchema,
+  FORECAST_DAYS,
+  isRainy,
+  type OutfitWeather,
+  outfitWeatherSchema,
   type GenerateOutfitResponse,
   type generateOutfitRequestSchema,
   type Outfit,
@@ -25,6 +29,7 @@ import { type Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { avoidedItemIds, readLearned } from '../style/learn-style';
 import { StyleLearningService } from '../style/style-learning.service';
+import { WeatherService } from '../weather/weather.service';
 import {
   baseKeyOf,
   type Candidate,
@@ -81,6 +86,7 @@ export class OutfitsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly provider: AIProvider,
+    private readonly weather: WeatherService,
     private readonly closet: ClosetService,
     private readonly learning: StyleLearningService,
   ) {}
@@ -89,7 +95,7 @@ export class OutfitsService {
     const now = Date.now();
     const profile = await this.prisma.profile.findUnique({
       where: { userId },
-      select: { locale: true, timezone: true },
+      select: { locale: true, timezone: true, city: true, countryCode: true },
     });
     const timezone = profile?.timezone ?? 'UTC';
     const today = localDay(new Date(now), timezone);
@@ -107,6 +113,15 @@ export class OutfitsService {
 
     // Apply any rating, wear or save that has not been learned from yet.
     await this.learning.ensureFresh(userId);
+    // Weather of the target day (live for today, forecast later); optional.
+    const weather =
+      profile?.city && ahead < FORECAST_DAYS
+        ? await this.weather.forPlace(
+            { city: profile.city, countryCode: profile.countryCode },
+            target,
+            ahead === 0,
+          )
+        : null;
     const [items, preferences, wears, planned, recentOutfits, feedback, excluded] =
       await Promise.all([
         this.prisma.clothingItem.findMany({ where: { userId, archivedAt: null } }),
@@ -215,6 +230,7 @@ export class OutfitsService {
       excludedCombos: new Set(excluded.map(piecesKey)),
       excludedBases: new Set(excluded.map(piecesBase)),
       usedBases,
+      weather: weather ? { minC: weather.minC, maxC: weather.maxC, rainy: isRainy(weather) } : null,
       // Varies across requests; "try another" relies on exclusions, not luck.
       seed: Math.floor(now / 1000),
     });
@@ -241,12 +257,20 @@ export class OutfitsService {
       recentlyWornIds: recentlyWorn(candidate),
     }));
 
+    const outfitWeather: OutfitWeather | null = weather
+      ? {
+          temperatureC: weather.kind === 'CURRENT' ? weather.temperatureC : weather.maxC,
+          condition: weather.condition,
+          rainProbability: weather.rainProbability,
+        }
+      : null;
     const choice = await this.chooseWithProvider(
       request,
       aiCandidates,
       preferences?.preferredColors ?? [],
       preferences?.preferredStyles ?? [],
       locale,
+      outfitWeather,
     );
     const chosen = result.candidates[choice.candidateIndex]!;
 
@@ -260,6 +284,7 @@ export class OutfitsService {
         score: Math.round(chosen.score * 1000) / 1000,
         source: 'AI',
         constraints: request.constraints as Prisma.InputJsonValue,
+        ...(outfitWeather ? { weatherSnapshot: outfitWeather as Prisma.InputJsonValue } : {}),
         items: {
           create: chosen.items
             .map((item, index) => ({ item, slot: chosen.slots[index]! }))
@@ -404,6 +429,7 @@ export class OutfitsService {
     colors: string[],
     styles: Style[],
     locale: string,
+    weather: OutfitWeather | null,
   ): Promise<{ candidateIndex: number; name: string; reason: string }> {
     try {
       const choice = await this.provider.generateOutfit({
@@ -411,7 +437,7 @@ export class OutfitsService {
         style: request.style,
         candidates,
         preferences: { colors, styles },
-        weather: null, // phase 13
+        weather,
         locale,
       });
       const name = choice.name?.trim().slice(0, 80);
@@ -438,7 +464,7 @@ export class OutfitsService {
         items: best.items,
         occasion: request.occasion,
         style: request.style,
-        weather: null,
+        weather,
         recentlyWornIds: best.recentlyWornIds,
         preferredColors: colors,
         locale,
@@ -492,6 +518,10 @@ export class OutfitsService {
       feedback: feedback
         ? { rating: feedback.rating, reason: reason.success ? reason.data : null }
         : null,
+      weather: (() => {
+        const parsed = outfitWeatherSchema.safeParse(outfit.weatherSnapshot);
+        return parsed.success ? parsed.data : null;
+      })(),
       wornToday:
         lastWornAt !== null && localDay(lastWornAt, timezone) === localDay(new Date(), timezone),
       lastWornAt: lastWornAt?.toISOString() ?? null,

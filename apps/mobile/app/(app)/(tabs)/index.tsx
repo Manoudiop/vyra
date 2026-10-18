@@ -4,6 +4,9 @@ import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSession } from '@/features/auth/session-store';
+import { useCalendarMonth } from '@/features/calendar/hooks';
+import { OutfitRow } from '@/features/calendar/OutfitRow';
+import { WeatherCard } from '@/features/weather/WeatherCard';
 import {
   Card,
   colors,
@@ -26,6 +29,10 @@ export default function HomeScreen() {
   const { t, i18n } = useTranslation();
   const user = useSession((state) => state.user);
   const now = new Date();
+  const deviceMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const calendar = useCalendarMonth(deviceMonth);
+  const today = calendar.data?.today;
+  const planned = calendar.data?.days.find((entry) => entry.date === today)?.planned ?? null;
   const dateLabel = now.toLocaleDateString(i18n.language, {
     weekday: 'long',
     day: 'numeric',
@@ -55,19 +62,34 @@ export default function HomeScreen() {
         title={t(greetingKey(now.getHours()), { name: user?.firstName ?? '' })}
       />
 
+      <View style={styles.weather}>
+        <WeatherCard />
+      </View>
+
       <Text variant="overline" color="secondary" style={styles.sectionTitle}>
         {t('home.todaysLook')}
       </Text>
-      <Card padded={false} style={styles.todayCard}>
-        <EmptyState
-          testID="home-empty"
-          icon={Sparkles}
-          title={t('home.emptyTitle')}
-          body={t('home.emptyBody')}
-          actionLabel={t('home.emptyCta')}
-          onAction={() => router.navigate('/stylist')}
-        />
-      </Card>
+      {planned ? (
+        <Card style={styles.todayCard} testID="home-planned">
+          <OutfitRow outfit={planned.outfit} />
+          {planned.notes && (
+            <Text variant="footnote" color="secondary">
+              {planned.notes}
+            </Text>
+          )}
+        </Card>
+      ) : (
+        <Card padded={false} style={styles.todayCard}>
+          <EmptyState
+            testID="home-empty"
+            icon={Sparkles}
+            title={t('home.emptyTitle')}
+            body={t('home.emptyBody')}
+            actionLabel={t('home.emptyCta')}
+            onAction={() => router.navigate('/stylist')}
+          />
+        </Card>
+      )}
 
       <Text variant="overline" color="secondary" style={styles.sectionTitle}>
         {t('home.quickActions')}
@@ -101,7 +123,8 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   sectionTitle: { marginBottom: spacing.md, marginTop: spacing.sm },
-  todayCard: { marginBottom: spacing.xxl },
+  weather: { marginBottom: spacing.xl },
+  todayCard: { marginBottom: spacing.xxl, gap: spacing.sm },
   actions: { flexDirection: 'row', gap: spacing.md },
   actionSlot: { flex: 1 },
   action: { flex: 1, gap: spacing.md, minHeight: 104, justifyContent: 'space-between' },

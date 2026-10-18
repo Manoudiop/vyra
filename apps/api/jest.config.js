@@ -19,5 +19,8 @@ module.exports = {
   // The generated Prisma client imports its own TS files with '.js' extensions (ESM style).
   moduleNameMapper: { '^(\\.{1,2}/.*)\\.js$': '$1' },
   setupFiles: ['<rootDir>/test/setup-env.ts'],
+  // e2e tests register users (argon2 is slow on purpose) and run several
+  // generations; 5 s is too tight when API and mobile suites share the CPU.
+  testTimeout: 30_000,
   collectCoverageFrom: ['src/**/*.ts', '!src/main.ts', '!src/generated/**'],
 };

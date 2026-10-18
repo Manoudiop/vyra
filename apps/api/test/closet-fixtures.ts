@@ -1,5 +1,5 @@
 import { type INestApplication } from '@nestjs/common';
-import { type ClothingCategory, type Style } from '../src/generated/prisma/enums';
+import { type ClothingCategory, type Season, type Style } from '../src/generated/prisma/enums';
 import { type PrismaService } from '../src/prisma/prisma.service';
 import { registerTestUser, type TestUser } from './helpers';
 
@@ -9,6 +9,7 @@ interface PieceSpec {
   subcategory: string;
   color: string;
   style: Style;
+  season?: Season;
 }
 
 export const MEN_CLOSET: PieceSpec[] = [
@@ -68,6 +69,47 @@ export const MEN_CLOSET: PieceSpec[] = [
     subcategory: 'agbada',
     color: 'navy',
     style: 'TRADITIONAL',
+  },
+];
+
+/** A small dinner wardrobe: the shoes are the weather question. */
+export const DINNER_CLOSET: PieceSpec[] = [
+  {
+    name: 'Top en soie champagne',
+    category: 'TOPS',
+    subcategory: 'blouse',
+    color: 'cream',
+    style: 'ELEGANT',
+  },
+  {
+    name: 'Pantalon noir taille haute',
+    category: 'BOTTOMS',
+    subcategory: 'trousers',
+    color: 'black',
+    style: 'ELEGANT',
+  },
+  {
+    name: 'Sandales à talon dorées',
+    category: 'SHOES',
+    subcategory: 'heels',
+    color: 'gold',
+    style: 'ELEGANT',
+    season: 'SUMMER',
+  },
+  {
+    name: 'Mocassins cognac',
+    category: 'SHOES',
+    subcategory: 'loafers',
+    color: 'brown',
+    style: 'SMART_CASUAL',
+  },
+  {
+    name: 'Trench classique',
+    category: 'OUTERWEAR',
+    subcategory: 'trench coat',
+    color: 'beige',
+    style: 'SMART_CASUAL',
+    season: 'AUTUMN',
   },
 ];
 

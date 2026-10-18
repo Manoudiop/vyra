@@ -351,20 +351,35 @@ export function explainOutfit(facts: ExplanationFacts): string {
     if (finish.length) sentences.push(`${capitalize(joinEn(finish))}.`);
   }
 
-  // 4. Weather (phase 13 provides it).
+  // 4. Weather of the day, tied to the pieces that answer it.
   if (facts.weather) {
-    const { temperatureC, rainProbability } = facts.weather;
+    const { temperatureC, rainProbability, condition } = facts.weather;
+    const degrees = Math.round(temperatureC);
+    const rainPct = Math.round(rainProbability * 100);
+    const rainy = condition === 'RAIN' || condition === 'STORM' || rainProbability >= 0.5;
     if (locale === 'fr') {
       sentences.push(
-        rainProbability >= 0.5
-          ? `Avec ${Math.round(rainProbability * 100)} % de risque de pluie, prévois de quoi te couvrir.`
-          : `Pensé pour les ${Math.round(temperatureC)} °C prévus.`,
+        rainy
+          ? outer
+            ? `Avec ${rainPct} % de risque de pluie, ${q(outer)} te couvre et les chaussures restent fermées.`
+            : `Avec ${rainPct} % de risque de pluie, des chaussures fermées et une pièce qui ne craint pas l’averse.`
+          : degrees >= 28
+            ? `Des pièces légères pour les ${degrees} °C prévus.`
+            : degrees < 16 && outer
+              ? `${capitalize(q(outer))} te garde au chaud par ${degrees} °C.`
+              : `Pensé pour les ${degrees} °C prévus.`,
       );
     } else {
       sentences.push(
-        rainProbability >= 0.5
-          ? `With a ${Math.round(rainProbability * 100)}% chance of rain, keep a layer handy.`
-          : `Made for the ${Math.round(temperatureC)}°C forecast.`,
+        rainy
+          ? outer
+            ? `With a ${rainPct}% chance of rain, ${q(outer)} keeps you covered and the shoes stay closed.`
+            : `With a ${rainPct}% chance of rain: closed shoes and pieces that don’t mind a shower.`
+          : degrees >= 28
+            ? `Light pieces for the ${degrees}°C forecast.`
+            : degrees < 16 && outer
+              ? `${capitalize(q(outer))} keeps you warm at ${degrees}°C.`
+              : `Made for the ${degrees}°C forecast.`,
       );
     }
   }

@@ -1,3 +1,4 @@
+import { type AnalyticsService } from '../analytics/analytics.service';
 import { type AppConfigService } from '../config/app-config.service';
 import { type PrismaService } from '../prisma/prisma.service';
 import { MockBillingProvider } from './mock-billing.provider';
@@ -70,12 +71,17 @@ describe('SubscriptionsService in production', () => {
         update: jest.fn(),
       },
     } as unknown as PrismaService;
-    const service = new SubscriptionsService(prisma, new MockBillingProvider(), {
-      isProduction: true,
-    } as AppConfigService);
+    const analytics = { track: jest.fn() } as unknown as AnalyticsService;
+    const service = new SubscriptionsService(
+      prisma,
+      new MockBillingProvider(),
+      { isProduction: true } as AppConfigService,
+      analytics,
+    );
     await expect(service.checkout('u1', 'u1@vyra.dev', 'PRO')).rejects.toMatchObject({
       code: 'FORBIDDEN',
     });
     expect(prisma.subscription.update).not.toHaveBeenCalled();
+    expect(analytics.track).not.toHaveBeenCalled();
   });
 });

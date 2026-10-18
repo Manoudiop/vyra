@@ -9,6 +9,7 @@ import {
   USAGE_METRICS,
 } from '@vyra/shared';
 import { AppException } from '../common/errors/app.exception';
+import { AnalyticsService } from '../analytics/analytics.service';
 import { AppConfigService } from '../config/app-config.service';
 import { type Subscription as SubscriptionRow } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -34,6 +35,7 @@ export class SubscriptionsService {
     private readonly prisma: PrismaService,
     private readonly billing: BillingProvider,
     private readonly config: AppConfigService,
+    private readonly analytics: AnalyticsService,
   ) {}
 
   /** The plans, prices in FCFA and what each one unlocks — one source: PLAN_DEFINITIONS. */
@@ -107,6 +109,11 @@ export class SubscriptionsService {
       },
     });
     this.logger.log(`Subscription ${userId}: ${active} -> ${plan} (${this.billing.name})`);
+    this.analytics.track(userId, 'subscription_started', {
+      plan,
+      previousPlan: active,
+      provider: this.billing.name,
+    });
     return { status: 'COMPLETED', paymentUrl: null, subscription: this.toDto(row) };
   }
 
@@ -124,6 +131,10 @@ export class SubscriptionsService {
       where: { userId },
       data: { cancelAtPeriodEnd: true, canceledAt: new Date() },
     });
+    const cancelled = effectivePlan(current);
+    if (cancelled !== 'FREE') {
+      this.analytics.track(userId, 'subscription_cancelled', { plan: cancelled });
+    }
     return this.toDto(row);
   }
 

@@ -9,6 +9,7 @@ import { AppException } from '../common/errors/app.exception';
 import { hashPassword, verifyPassword } from '../common/security/password';
 import { PrismaService } from '../prisma/prisma.service';
 import { UsersService } from '../users/users.service';
+import { AnalyticsService } from '../analytics/analytics.service';
 import { TokenService } from './token.service';
 
 const invalidCredentials = () => new AppException('AUTH_REQUIRED', 'Incorrect email or password.');
@@ -22,6 +23,7 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly tokens: TokenService,
     private readonly users: UsersService,
+    private readonly analytics: AnalyticsService,
   ) {}
 
   async register(input: RegisterInput, userAgent?: string): Promise<AuthSession> {
@@ -48,6 +50,7 @@ export class AuthService {
       select: { id: true, role: true },
     });
 
+    this.analytics.track(user.id, 'signup', {});
     return this.session(user, userAgent);
   }
 

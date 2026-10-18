@@ -382,6 +382,11 @@ export const fr = {
     PRO: 'VYRA Pro',
     PREMIUM: 'VYRA Premium',
   },
+  privacy: {
+    analyticsTitle: 'Statistiques d’usage anonymes',
+    analyticsBody:
+      'Aide VYRA à s’améliorer (looks générés, portés, notés…). Jamais ton nom, tes photos, ta ville ni le contenu de ton dressing.',
+  },
   subscription: {
     title: 'Abonnement',
     paywallTitle: 'Plus de looks, plus de liberté',

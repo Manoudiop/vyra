@@ -1,11 +1,12 @@
 import { formatXof, type PaidPlan, type PlanOffer } from '@vyra/shared';
 import { useLocalSearchParams } from 'expo-router';
 import { Check, CircleCheck, Info, X } from 'lucide-react-native';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { analyticsApi } from '@/features/analytics/analytics-api';
 import { FormBanner } from '@/features/auth/components';
 import {
   type PaywallReason,
@@ -66,6 +67,11 @@ export default function PaywallScreen() {
   const purchasedOffer = paid.find((entry) => entry.plan === purchased);
   const offer = paid.find((entry) => entry.plan === selected);
   const close = () => goBackOr('/profile');
+
+  // Shown: the one product event only the app can see.
+  useEffect(() => {
+    void analyticsApi.track({ name: 'paywall_viewed', properties: { reason } });
+  }, [reason]);
 
   // A subscription started now renews in a month.
   const [renewalLabel] = useState(() => {

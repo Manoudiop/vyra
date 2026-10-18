@@ -113,6 +113,8 @@ export const updateProfileSchema = completeOnboardingSchema
   .extend({
     lastName: z.string().trim().max(60).nullable(),
     notificationsEnabled: z.boolean(),
+    /** Anonymous usage statistics (product events); on by default, off in one tap. */
+    analyticsEnabled: z.boolean(),
     countryCode: countryCodeSchema.nullable(),
   })
   .partial()
@@ -128,6 +130,7 @@ export const profileSchema = z.object({
   timezone: z.string(),
   locale: z.string(),
   notificationsEnabled: z.boolean(),
+  analyticsEnabled: z.boolean(),
   onboardingCompleted: z.boolean(),
   preferredStyles: z.array(styleSchema),
   preferredColors: z.array(z.string()),

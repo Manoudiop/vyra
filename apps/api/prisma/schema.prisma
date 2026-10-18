@@ -177,6 +177,8 @@ model Profile {
   timezone              String            @default("UTC")
   locale                String            @default("fr")
   notificationsEnabled  Boolean           @default(true)
+  /// Product analytics (pseudonymous, no personal data); the user can turn it off.
+  analyticsEnabled      Boolean           @default(true)
   onboardingCompletedAt DateTime?         @db.Timestamptz(3)
   createdAt             DateTime          @default(now()) @db.Timestamptz(3)
   updatedAt             DateTime          @updatedAt @db.Timestamptz(3)
@@ -377,7 +379,8 @@ model AnalyticsEvent {
   properties Json     @default("{}")
   createdAt  DateTime @default(now()) @db.Timestamptz(3)
 
-  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  /// Deleting an account deletes its events (right to erasure).
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([name, createdAt])
   @@index([userId, createdAt])

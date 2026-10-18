@@ -6,10 +6,10 @@
  *   pnpm db:seed
  */
 import { PrismaPg } from '@prisma/adapter-pg';
-import { getMeteredLimit } from '@vyra/shared';
+import { ANALYTICS_EVENTS, type AnalyticsEventName, getMeteredLimit } from '@vyra/shared';
 import { config as loadEnv } from 'dotenv';
 import { hashPassword } from '../../src/common/security/password';
-import { PrismaClient } from '../../src/generated/prisma/client';
+import { type Prisma, PrismaClient } from '../../src/generated/prisma/client';
 import { LocalStorageAdapter } from '../../src/storage/local-storage.adapter';
 import { S3StorageAdapter } from '../../src/storage/s3-storage.adapter';
 import { type StorageService } from '../../src/storage/storage.service';
@@ -71,6 +71,8 @@ async function seedUser(
       email: demo.email,
       passwordHash,
       firstName: demo.firstName,
+      // Consistent with the demo history (signup event, first outfits).
+      createdAt: calendarDay(-30, now),
       lastName: demo.lastName,
       role: demo.role,
       profile: {
@@ -196,28 +198,79 @@ async function seedUser(
     });
   }
 
-  await prisma.analyticsEvent.createMany({
-    data: [
+  // Product events consistent with the demo data, each validated by the
+  // shared catalog (same rules as the API: no personal data).
+  if (demo.role === 'USER') {
+    const events: { name: AnalyticsEventName; properties: unknown; createdAt: Date }[] = [
+      { name: 'signup', properties: {}, createdAt: calendarDay(-30, now) },
       {
-        userId: user.id,
-        name: 'signup',
-        properties: { source: 'seed' },
-        createdAt: calendarDay(-30, now),
-      },
-      {
-        userId: user.id,
         name: 'onboarding_completed',
-        properties: {},
+        properties: {
+          styles: demo.preferences.styles.length,
+          colors: demo.preferences.colors.length,
+          occasions: demo.preferences.occasions.length,
+        },
         createdAt: calendarDay(-30, now),
       },
-      ...demo.outfits.map(() => ({
-        userId: user.id,
-        name: 'outfit_generated',
-        properties: { source: 'seed' },
-        createdAt: calendarDay(-20, now),
+      ...demo.items.map((item) => ({
+        name: 'item_added' as const,
+        properties: { category: item.category, aiPrefilled: false, corrections: 0 },
+        createdAt: calendarDay(-29, now),
       })),
-    ],
-  });
+    ];
+    for (const [index, outfit] of demo.outfits.entries()) {
+      const generatedAt = new Date(now.getTime() - (25 - index * 3) * DAY_MS);
+      const look = { occasion: outfit.occasion };
+      events.push({
+        name: 'outfit_generated',
+        properties: {
+          occasion: outfit.occasion,
+          style: outfit.style,
+          candidateCount: 5,
+          planned: false,
+          weather: null,
+          provider: 'mock',
+        },
+        createdAt: generatedAt,
+      });
+      if (outfit.isSaved)
+        events.push({ name: 'outfit_saved', properties: look, createdAt: generatedAt });
+      if (outfit.rating === 'LOVE') {
+        events.push({ name: 'outfit_liked', properties: look, createdAt: generatedAt });
+      } else if (outfit.rating === 'DISLIKE') {
+        events.push({
+          name: 'outfit_disliked',
+          properties: { ...look, reason: null },
+          createdAt: generatedAt,
+        });
+      }
+      for (const daysAgo of outfit.wornDaysAgo ?? []) {
+        events.push({ name: 'outfit_worn', properties: look, createdAt: morningOf(daysAgo, now) });
+      }
+    }
+    if (demo.plan !== 'FREE') {
+      events.push(
+        {
+          name: 'paywall_viewed',
+          properties: { reason: 'generations', currentPlan: 'FREE' },
+          createdAt: calendarDay(-10, now),
+        },
+        {
+          name: 'subscription_started',
+          properties: { plan: demo.plan, previousPlan: 'FREE', provider: 'mock' },
+          createdAt: calendarDay(-10, now),
+        },
+      );
+    }
+    await prisma.analyticsEvent.createMany({
+      data: events.map((event) => ({
+        userId: user.id,
+        name: event.name,
+        properties: ANALYTICS_EVENTS[event.name].parse(event.properties) as Prisma.InputJsonValue,
+        createdAt: event.createdAt,
+      })),
+    });
+  }
 
   return { items: demo.items.length, outfits: demo.outfits.length };
 }

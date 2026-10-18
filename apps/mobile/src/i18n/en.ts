@@ -383,6 +383,11 @@ export const en: TranslationResources = {
     PRO: 'VYRA Pro',
     PREMIUM: 'VYRA Premium',
   },
+  privacy: {
+    analyticsTitle: 'Anonymous usage statistics',
+    analyticsBody:
+      'Helps VYRA improve (looks generated, worn, rated…). Never your name, photos, city or what is in your closet.',
+  },
   subscription: {
     title: 'Subscription',
     paywallTitle: 'More looks, more freedom',

@@ -38,6 +38,7 @@ const profile: Profile = {
   timezone: 'Africa/Dakar',
   locale: 'fr',
   notificationsEnabled: true,
+  analyticsEnabled: true,
   onboardingCompleted: true,
   preferredStyles: ['ELEGANT', 'TRADITIONAL'],
   preferredColors: ['gold', 'terracotta'],

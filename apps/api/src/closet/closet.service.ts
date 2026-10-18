@@ -16,6 +16,7 @@ import { type Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService, userKeyPrefix } from '../storage/storage.service';
 import { PlansService } from '../subscriptions/plans.service';
+import { AnalyticsService } from '../analytics/analytics.service';
 
 type ClosetQueryParsed = z.output<typeof closetQuerySchema>;
 export type ItemRow = Prisma.ClothingItemGetPayload<object>;
@@ -32,6 +33,7 @@ export class ClosetService {
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
     private readonly plans: PlansService,
+    private readonly analytics: AnalyticsService,
   ) {}
 
   async list(userId: string, query: ClosetQueryParsed): Promise<ClosetPage> {
@@ -158,6 +160,12 @@ export class ClosetService {
         thumbnailKey: input.thumbnailKey ?? null,
         metadata: (input.metadata ?? {}) as Prisma.InputJsonValue,
       },
+    });
+    const corrected = input.metadata?.corrected;
+    this.analytics.track(userId, 'item_added', {
+      category: row.category,
+      aiPrefilled: Boolean(input.metadata?.analysis),
+      corrections: Array.isArray(corrected) ? Math.min(corrected.length, 10) : 0,
     });
     return this.toDto(row);
   }

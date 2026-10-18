@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { type CompleteOnboardingInput, type Profile, type UpdateProfileInput } from '@vyra/shared';
 import { AppException } from '../common/errors/app.exception';
 import { PrismaService } from '../prisma/prisma.service';
+import { AnalyticsService } from '../analytics/analytics.service';
 
 const PROFILE_SELECT = {
   firstName: true,
@@ -18,7 +19,10 @@ const PROFILE_SELECT = {
  */
 @Injectable()
 export class ProfilesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly analytics: AnalyticsService,
+  ) {}
 
   async get(userId: string): Promise<Profile> {
     const user = await this.prisma.user.findUnique({
@@ -36,6 +40,7 @@ export class ProfilesService {
       timezone: user.profile?.timezone ?? 'UTC',
       locale: user.profile?.locale ?? 'fr',
       notificationsEnabled: user.profile?.notificationsEnabled ?? true,
+      analyticsEnabled: user.profile?.analyticsEnabled ?? true,
       onboardingCompleted: user.profile?.onboardingCompletedAt != null,
       preferredStyles: user.stylePreference?.preferredStyles ?? [],
       preferredColors: user.stylePreference?.preferredColors ?? [],
@@ -57,12 +62,14 @@ export class ProfilesService {
       preferredOccasions: input.preferredOccasions,
     };
 
+    let firstCompletion = false;
     await this.prisma.$transaction(async (tx) => {
       await tx.user.update({ where: { id: userId }, data: { firstName: input.firstName } });
       const existing = await tx.profile.findUnique({
         where: { userId },
         select: { onboardingCompletedAt: true },
       });
+      firstCompletion = !existing?.onboardingCompletedAt;
       await tx.profile.upsert({
         where: { userId },
         create: { userId, ...profile, onboardingCompletedAt: new Date() },
@@ -79,6 +86,13 @@ export class ProfilesService {
       });
     });
 
+    if (firstCompletion) {
+      this.analytics.track(userId, 'onboarding_completed', {
+        styles: input.preferredStyles.length,
+        colors: input.preferredColors.length,
+        occasions: input.preferredOccasions.length,
+      });
+    }
     return this.get(userId);
   }
 

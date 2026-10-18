@@ -30,6 +30,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { avoidedItemIds, readLearned } from '../style/learn-style';
 import { StyleLearningService } from '../style/style-learning.service';
 import { WeatherService } from '../weather/weather.service';
+import { AnalyticsService } from '../analytics/analytics.service';
 import {
   baseKeyOf,
   type Candidate,
@@ -87,6 +88,7 @@ export class OutfitsService {
     private readonly prisma: PrismaService,
     private readonly provider: AIProvider,
     private readonly weather: WeatherService,
+    private readonly analytics: AnalyticsService,
     private readonly closet: ClosetService,
     private readonly learning: StyleLearningService,
   ) {}
@@ -301,6 +303,14 @@ export class OutfitsService {
       include: OUTFIT_INCLUDE,
     });
 
+    this.analytics.track(userId, 'outfit_generated', {
+      occasion: request.occasion,
+      style: request.style,
+      candidateCount: Math.min(result.candidates.length, 100),
+      planned: ahead > 0,
+      weather: weather?.condition ?? null,
+      provider: this.provider.name,
+    });
     return {
       outfit: await this.toDto(outfit, timezone),
       provider: this.provider.name,
@@ -337,9 +347,12 @@ export class OutfitsService {
   }
 
   async update(userId: string, id: string, input: UpdateOutfitInput): Promise<Outfit> {
-    await this.assertOwned(userId, id);
+    const owned = await this.assertOwned(userId, id);
     await this.prisma.outfit.update({ where: { id }, data: { isSaved: input.isSaved } });
     this.learning.markDirty(userId);
+    if (input.isSaved && !owned.isSaved) {
+      this.analytics.track(userId, 'outfit_saved', { occasion: owned.occasion });
+    }
     return this.get(userId, id);
   }
 
@@ -349,10 +362,11 @@ export class OutfitsService {
    * step back in the next suggestions.
    */
   async wear(userId: string, id: string): Promise<Outfit> {
-    await this.assertOwned(userId, id);
+    const owned = await this.assertOwned(userId, id);
     const now = new Date();
     if ((await this.wearsToday(userId, id, now)).length === 0) {
       await this.prisma.wearHistory.create({ data: { userId, outfitId: id, wornAt: now } });
+      this.analytics.track(userId, 'outfit_worn', { occasion: owned.occasion });
     }
     this.learning.markDirty(userId);
     return this.get(userId, id);
@@ -373,14 +387,29 @@ export class OutfitsService {
 
   /** "Love it" / "Not for me": one rating per look, changeable. */
   async rate(userId: string, id: string, input: OutfitFeedbackInput): Promise<Outfit> {
-    await this.assertOwned(userId, id);
+    const owned = await this.assertOwned(userId, id);
     const comment = input.rating === 'DISLIKE' ? (input.reason ?? null) : null;
+    const previous = await this.prisma.outfitFeedback.findUnique({
+      where: { outfitId_userId: { outfitId: id, userId } },
+      select: { rating: true },
+    });
     await this.prisma.outfitFeedback.upsert({
       where: { outfitId_userId: { outfitId: id, userId } },
       create: { outfitId: id, userId, rating: input.rating, comment },
       update: { rating: input.rating, comment },
     });
     this.learning.markDirty(userId);
+    // A new opinion counts once; adding a reason to "not for me" is not a new one.
+    if (previous?.rating !== input.rating) {
+      if (input.rating === 'LOVE') {
+        this.analytics.track(userId, 'outfit_liked', { occasion: owned.occasion });
+      } else {
+        this.analytics.track(userId, 'outfit_disliked', {
+          occasion: owned.occasion,
+          reason: input.reason ?? null,
+        });
+      }
+    }
     return this.get(userId, id);
   }
 
@@ -394,9 +423,10 @@ export class OutfitsService {
   private async assertOwned(userId: string, id: string) {
     const owned = await this.prisma.outfit.findFirst({
       where: { id, userId },
-      select: { id: true },
+      select: { occasion: true, isSaved: true },
     });
     if (!owned) throw new AppException('NOT_FOUND', 'Outfit not found');
+    return owned;
   }
 
   private async timezoneOf(userId: string) {

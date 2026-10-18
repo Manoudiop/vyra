@@ -12,6 +12,17 @@ export abstract class StorageService {
   abstract download(key: string): Promise<Buffer>;
   /** Signed, expiring URL the client can GET directly. */
   abstract getSignedUrl(key: string): Promise<string>;
+  /**
+   * Deletes everything under a user's folder (account deletion). Only accepts
+   * `users/<uuid>/` so a bug can never wipe more than one account.
+   */
+  abstract deleteUserFolder(userId: string): Promise<void>;
+}
+
+const USER_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+export function assertUserId(userId: string): void {
+  if (!USER_ID.test(userId)) throw new Error(`Refusing to delete storage for "${userId}"`);
 }
 
 /** Signed URLs stay valid for at least this long. */

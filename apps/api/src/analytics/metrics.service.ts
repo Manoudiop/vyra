@@ -18,6 +18,18 @@ export class MetricsService {
   async compute(now = new Date()): Promise<AdminMetrics> {
     const week = new Date(now.getTime() - 7 * DAY_MS);
     const month = new Date(now.getTime() - 30 * DAY_MS);
+    const [content, aiUsage] = await Promise.all([
+      Promise.all([
+        this.prisma.clothingItem.count({ where: { archivedAt: null, user: { role: 'USER' } } }),
+        this.prisma.outfit.count({ where: { user: { role: 'USER' } } }),
+        this.prisma.wearHistory.count({ where: { user: { role: 'USER' } } }),
+      ]),
+      this.prisma.usage.groupBy({
+        by: ['metric'],
+        where: { periodStart: { gte: month }, user: { role: 'USER' } },
+        _sum: { count: true },
+      }),
+    ]);
     const [total, recent, onboarded, subscriptions, grouped, ...activity] = await Promise.all([
       this.prisma.user.count({ where: { role: 'USER' } }),
       this.prisma.user.count({ where: { role: 'USER', createdAt: { gte: week } } }),
@@ -67,6 +79,13 @@ export class MetricsService {
       generatedAt: now.toISOString(),
       users: { total, newLast7Days: recent, activeLast7Days: active.size, onboarded },
       plans,
+      content: { clothingItems: content[0], outfits: content[1], wears: content[2] },
+      aiUsage: {
+        OUTFIT_GENERATION:
+          aiUsage.find((row) => row.metric === 'OUTFIT_GENERATION')?._sum.count ?? 0,
+        CLOTHING_ANALYSIS:
+          aiUsage.find((row) => row.metric === 'CLOTHING_ANALYSIS')?._sum.count ?? 0,
+      },
       events,
       rates: {
         paywallConversion: ratio(events.subscription_started ?? 0, events.paywall_viewed ?? 0),

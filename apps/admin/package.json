@@ -6,7 +6,7 @@
     "dev": "next dev --port 4101",
     "build": "next build",
     "start": "next start --port 4101",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "next typegen && tsc --noEmit",
     "lint": "eslint ."
   },
   "dependencies": {
@@ -14,7 +14,9 @@
     "@vyra/shared": "workspace:*",
     "next": "16.4.2",
     "react": "19.2.3",
-    "react-dom": "19.2.3"
+    "react-dom": "19.2.3",
+    "server-only": "^0.0.1",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/node": "^24.19.2",

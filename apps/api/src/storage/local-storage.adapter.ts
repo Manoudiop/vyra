@@ -3,10 +3,12 @@ import { access, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { dirname, resolve, sep } from 'node:path';
 import { safeEqualHex } from '../common/security/tokens';
 import {
+  assertUserId,
   isSafeKey,
   SIGNED_URL_MIN_TTL_SECONDS,
   signingWindowStart,
   StorageService,
+  userKeyPrefix,
 } from './storage.service';
 
 export const LOCAL_FILES_ROUTE = 'storage/files';
@@ -35,6 +37,13 @@ export class LocalStorageAdapter extends StorageService {
 
   async delete(key: string): Promise<void> {
     await rm(this.pathFor(key), { force: true });
+  }
+
+  async deleteUserFolder(userId: string): Promise<void> {
+    assertUserId(userId);
+    const path = this.safePath(userKeyPrefix(userId).slice(0, -1));
+    if (!path) throw new Error(`Unsafe user folder: ${userId}`);
+    await rm(path, { recursive: true, force: true });
   }
 
   async exists(key: string): Promise<boolean> {

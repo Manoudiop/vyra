@@ -385,6 +385,19 @@ export const en: TranslationResources = {
     PRO: 'VYRA Pro',
     PREMIUM: 'VYRA Premium',
   },
+  settings: {
+    title: 'Settings',
+    language: 'Language',
+    languageHint: 'The app and your stylist’s texts switch language.',
+    deleteTitle: 'Delete my account',
+    deleteHint: 'Permanent: your closet, photos and history are erased.',
+    deleteOpen: 'Delete my account…',
+    deleteExplain:
+      'Permanently deleted: your closet and its photos, your looks, calendar, history, preferences and subscription (it will not renew). This cannot be undone.',
+    deletePassword: 'Confirm with your password',
+    deleteConfirm: 'Delete permanently',
+    deleteWrongPassword: 'Wrong password.',
+  },
   privacy: {
     analyticsTitle: 'Anonymous usage statistics',
     analyticsBody:

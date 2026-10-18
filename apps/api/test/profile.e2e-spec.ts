@@ -129,6 +129,18 @@ describe('Profile (e2e)', () => {
     });
   });
 
+  it('stores the language from onboarding and lets the user change it', async () => {
+    const user = await registerTestUser(app);
+    const onboarded = await user
+      .auth('put', '/api/profile/onboarding')
+      .send({ ...ONBOARDING, locale: 'en' })
+      .expect(200);
+    expect(onboarded.body.locale).toBe('en');
+    const changed = await user.auth('patch', '/api/profile').send({ locale: 'fr' }).expect(200);
+    expect(changed.body.locale).toBe('fr');
+    await user.auth('patch', '/api/profile').send({ locale: 'de' }).expect(400);
+  });
+
   it('rejects an empty update', async () => {
     const user = await registerTestUser(app);
     const res = await user.auth('patch', '/api/profile').send({}).expect(400);

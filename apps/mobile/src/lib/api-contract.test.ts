@@ -1,3 +1,4 @@
+import { accountApi } from '@/features/account/account-api';
 import { analyticsApi } from '@/features/analytics/analytics-api';
 import { authApi } from '@/features/auth/auth-api';
 import { calendarApi } from '@/features/calendar/calendar-api';
@@ -102,12 +103,14 @@ const SAMPLES: Record<string, Record<string, () => unknown>> = {
   },
   usageApi: { get: () => usageApi.get() },
   weatherApi: { get: () => weatherApi.get(DATE) },
+  accountApi: { delete: () => accountApi.delete({ password: 'letters123' }) },
   analyticsApi: {
     track: () => analyticsApi.track({ name: 'paywall_viewed', properties: { reason: null } }),
   },
 };
 
 const CLIENTS: Record<string, object> = {
+  accountApi,
   authApi,
   closetApi,
   stylistApi,

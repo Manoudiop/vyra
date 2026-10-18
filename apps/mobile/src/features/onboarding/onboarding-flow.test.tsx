@@ -121,6 +121,8 @@ describe('onboarding', () => {
       city: 'Dakar',
       countryCode: 'SN',
       timezone: 'Africa/Dakar',
+      // The app's language becomes the account's.
+      locale: 'fr',
     });
     expect(await screen.findByTestId('home-screen')).toBeTruthy();
     expect(useOnboarding.getState().step).toBe(0);

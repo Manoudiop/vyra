@@ -112,14 +112,14 @@ describe('Analytics', () => {
     expect(analytics.track).toHaveBeenCalledTimes(1);
   });
 
-  it('lets the user turn usage statistics off from the profile', async () => {
+  it('lets the user turn usage statistics off from the settings', async () => {
     // A server that keeps what it was told.
     profile.update.mockImplementation(async (body) => {
       const next = { ...PROFILE, ...body } as Profile;
       profile.get.mockResolvedValue(next);
       return next;
     });
-    await renderRouter('./app', { initialUrl: '/profile' });
+    await renderRouter('./app', { initialUrl: '/settings' });
     const toggle = await screen.findByTestId('privacy-analytics');
     await waitFor(() => expect(toggle.props.value).toBe(true));
     expect(screen.getByTestId('privacy-card')).toHaveTextContent(/Jamais ton nom, tes photos/);
@@ -131,7 +131,7 @@ describe('Analytics', () => {
 
   it('puts the switch back if the change fails', async () => {
     profile.update.mockRejectedValue(new ApiError('NETWORK_ERROR', 'offline', 0));
-    await renderRouter('./app', { initialUrl: '/profile' });
+    await renderRouter('./app', { initialUrl: '/settings' });
     const toggle = await screen.findByTestId('privacy-analytics');
     await waitFor(() => expect(toggle.props.value).toBe(true));
     await fireEvent(toggle, 'valueChange', false);

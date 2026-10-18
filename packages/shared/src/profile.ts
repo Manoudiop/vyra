@@ -105,6 +105,8 @@ export const completeOnboardingSchema = z.object({
   city: citySchema,
   countryCode: countryCodeSchema.optional(),
   timezone: timezoneSchema.optional(),
+  /** The app's language at signup (FR by default, EN when the device prefers it). */
+  locale: z.enum(['fr', 'en']).optional(),
 });
 export type CompleteOnboardingInput = z.infer<typeof completeOnboardingSchema>;
 
@@ -115,6 +117,8 @@ export const updateProfileSchema = completeOnboardingSchema
     notificationsEnabled: z.boolean(),
     /** Anonymous usage statistics (product events); on by default, off in one tap. */
     analyticsEnabled: z.boolean(),
+    /** App language; also used for AI-written texts (names, explanations). */
+    locale: z.enum(['fr', 'en']),
     countryCode: countryCodeSchema.nullable(),
   })
   .partial()

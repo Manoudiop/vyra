@@ -38,7 +38,7 @@ import {
 const QUESTION_COUNT = ONBOARDING_STEPS.length - 2;
 
 export default function OnboardingScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
   const user = useSession((state) => state.user);
   const setUser = useSession((state) => state.setUser);
@@ -68,7 +68,8 @@ export default function OnboardingScreen() {
       return;
     }
     const input = toOnboardingInput(draft);
-    if (input) submit.mutate(input);
+    // The app's current language becomes the account's (AI texts follow it).
+    if (input) submit.mutate({ ...input, locale: i18n.language === 'en' ? 'en' : 'fr' });
   };
 
   const primaryLabel =

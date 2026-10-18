@@ -65,6 +65,22 @@ describe('S3StorageAdapter against MinIO (integration)', () => {
     await adapter.delete(key); // idempotent
   });
 
+  it('deletes a whole user folder, and only that one', async () => {
+    if (!available) return;
+    const owner = randomUUID();
+    const neighbour = randomUUID();
+    const keys = Array.from({ length: 3 }, () => `users/${owner}/clothing/${randomUUID()}.webp`);
+    const kept = `users/${neighbour}/clothing/${randomUUID()}.webp`;
+    for (const key of [...keys, kept]) await adapter.upload(key, Buffer.from('x'), 'image/webp');
+
+    await adapter.deleteUserFolder(owner);
+    for (const key of keys) expect(await adapter.exists(key)).toBe(false);
+    expect(await adapter.exists(kept)).toBe(true);
+    await adapter.deleteUserFolder(owner); // idempotent
+    await expect(adapter.deleteUserFolder('../..')).rejects.toThrow(/Refusing/);
+    await adapter.delete(kept);
+  });
+
   it('rejects unsigned access to objects', async () => {
     if (!available) return;
     const key = `users/test/clothing/${randomUUID()}.webp`;

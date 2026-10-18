@@ -90,6 +90,17 @@ export const adminMetricsSchema = z.object({
     onboarded: z.number().int(),
   }),
   plans: z.record(planSchema, z.number().int()),
+  /** What lives in the app: closet pieces (not archived), outfits, wears. */
+  content: z.object({
+    clothingItems: z.number().int(),
+    outfits: z.number().int(),
+    wears: z.number().int(),
+  }),
+  /** Metered AI calls counted over the last 30 days. */
+  aiUsage: z.object({
+    OUTFIT_GENERATION: z.number().int(),
+    CLOTHING_ANALYSIS: z.number().int(),
+  }),
   /** Event counts over the last 30 days. */
   events: z.record(z.string(), z.number().int()),
   rates: z.object({

@@ -385,6 +385,19 @@ export const fr = {
     PRO: 'VYRA Pro',
     PREMIUM: 'VYRA Premium',
   },
+  settings: {
+    title: 'Réglages',
+    language: 'Langue',
+    languageHint: 'L’app et les textes de ton styliste changent de langue.',
+    deleteTitle: 'Supprimer mon compte',
+    deleteHint: 'Définitif : ton dressing, tes photos et ton historique sont effacés.',
+    deleteOpen: 'Supprimer mon compte…',
+    deleteExplain:
+      'Seront supprimés définitivement : ton dressing et ses photos, tes looks, ton agenda, ton historique, tes préférences et ton abonnement (qui ne sera pas renouvelé). Cette action est irréversible.',
+    deletePassword: 'Confirme avec ton mot de passe',
+    deleteConfirm: 'Supprimer définitivement',
+    deleteWrongPassword: 'Mot de passe incorrect.',
+  },
   privacy: {
     analyticsTitle: 'Statistiques d’usage anonymes',
     analyticsBody:

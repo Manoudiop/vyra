@@ -55,6 +55,7 @@ export class ProfilesService {
       city: input.city,
       countryCode: input.countryCode ?? null,
       ...(input.timezone ? { timezone: input.timezone } : {}),
+      ...(input.locale ? { locale: input.locale } : {}),
     };
     const preferences = {
       preferredStyles: input.preferredStyles,

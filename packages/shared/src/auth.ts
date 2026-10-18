@@ -83,3 +83,9 @@ export type AuthSession = z.infer<typeof authSessionSchema>;
 
 export const messageResponseSchema = z.object({ message: z.string() });
 export type MessageResponse = z.infer<typeof messageResponseSchema>;
+
+/** Account deletion is confirmed with the password (and cannot be undone). */
+export const deleteAccountSchema = z.object({
+  password: z.string().min(1).max(PASSWORD_MAX_LENGTH),
+});
+export type DeleteAccountInput = z.infer<typeof deleteAccountSchema>;

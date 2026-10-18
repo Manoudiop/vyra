@@ -1,9 +1,11 @@
 import {
   CreateBucketCommand,
   DeleteObjectCommand,
+  DeleteObjectsCommand,
   GetObjectCommand,
   HeadBucketCommand,
   HeadObjectCommand,
+  ListObjectsV2Command,
   PutObjectCommand,
   S3Client,
   S3ServiceException,
@@ -12,10 +14,12 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { Logger } from '@nestjs/common';
 import { AppException } from '../common/errors/app.exception';
 import {
+  assertUserId,
   isSafeKey,
   SIGNED_URL_MIN_TTL_SECONDS,
   signingWindowStart,
   StorageService,
+  userKeyPrefix,
 } from './storage.service';
 
 export interface S3Settings {
@@ -68,6 +72,35 @@ export class S3StorageAdapter extends StorageService {
           CacheControl: 'private, max-age=31536000, immutable',
         }),
       );
+    } catch (error) {
+      throw storageError(error);
+    }
+  }
+
+  async deleteUserFolder(userId: string): Promise<void> {
+    assertUserId(userId);
+    const prefix = userKeyPrefix(userId);
+    try {
+      let token: string | undefined;
+      do {
+        const page = await this.client.send(
+          new ListObjectsV2Command({
+            Bucket: this.settings.bucket,
+            Prefix: prefix,
+            ContinuationToken: token,
+          }),
+        );
+        const keys = (page.Contents ?? []).flatMap((object) => (object.Key ? [object.Key] : []));
+        if (keys.length) {
+          await this.client.send(
+            new DeleteObjectsCommand({
+              Bucket: this.settings.bucket,
+              Delete: { Objects: keys.map((Key) => ({ Key })), Quiet: true },
+            }),
+          );
+        }
+        token = page.IsTruncated ? page.NextContinuationToken : undefined;
+      } while (token);
     } catch (error) {
       throw storageError(error);
     }

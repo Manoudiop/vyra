@@ -1,5 +1,4 @@
 import {
-  Bell,
   Bookmark,
   ChevronRight,
   Crown,
@@ -14,7 +13,6 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, Platform, StyleSheet, View } from 'react-native';
 import { useSession } from '@/features/auth/session-store';
-import { PrivacyCard } from '@/features/analytics/PrivacyCard';
 import { PlanUsageCard } from '@/features/usage/UsageViews';
 import {
   Button,
@@ -139,14 +137,13 @@ export default function ProfileScreen() {
           onPress={() => router.push('/subscription')}
         />
         <View style={styles.divider} />
-        <Row icon={Bell} label={t('profile.notifications')} />
-        <View style={styles.divider} />
-        <Row icon={Settings} label={t('profile.settings')} />
+        <Row
+          testID="profile-settings"
+          icon={Settings}
+          label={t('profile.settings')}
+          onPress={() => router.push('/settings')}
+        />
       </Card>
-
-      <View style={styles.privacy}>
-        <PrivacyCard />
-      </View>
 
       <Button
         testID="logout-button"
@@ -162,7 +159,6 @@ export default function ProfileScreen() {
 
 const styles = StyleSheet.create({
   plan: { marginBottom: spacing.lg },
-  privacy: { marginTop: spacing.lg },
   identity: {
     flexDirection: 'row',
     alignItems: 'center',
